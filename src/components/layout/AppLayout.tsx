@@ -6,7 +6,7 @@ import { Play, Pause, RotateCcw, Activity, LayoutDashboard, Users, ListTodo, Mes
 import { motion } from 'framer-motion';
 
 export const AppLayout: React.FC = () => {
-  const { state, toggleSimulation } = useSimulationContext();
+  const { state, toggleSimulation, sendMessage } = useSimulationContext();
 
   const navItems = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -25,7 +25,7 @@ export const AppLayout: React.FC = () => {
           </div>
           <div>
             <h1 className="text-lg font-bold tracking-tight text-zinc-900">AI Workflow</h1>
-            <p className="text-[10px] text-zinc-500 font-medium mt-0.5 uppercase tracking-wider">Simulation Engine</p>
+            <p className="text-[10px] text-zinc-500 font-medium mt-0.5 uppercase tracking-wider">Workflow Engine</p>
           </div>
         </div>
         
@@ -72,11 +72,11 @@ export const AppLayout: React.FC = () => {
 
           <div className="flex items-center gap-3 ml-auto">
             <div className="text-xs font-mono font-medium bg-zinc-100 px-3 py-2 rounded-lg border border-zinc-200 text-zinc-600 flex items-center gap-2 shadow-sm">
-              <div className={`w-2 h-2 rounded-full ${state.isRunning ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-400'}`} />
-              T+{state.time}h
+              <div className={`w-2 h-2 rounded-full bg-emerald-500 animate-pulse`} />
+              Step {state.time}
             </div>
-            <Button onClick={toggleSimulation} variant={state.isRunning ? "destructive" : "default"} className="w-32 shadow-sm">
-              {state.isRunning ? <><Pause className="w-4 h-4 mr-2" /> Pause</> : <><Play className="w-4 h-4 mr-2" /> Start</>}
+            <Button onClick={() => sendMessage("Proceed with the next steps of the project.")} variant="default" className="w-40 shadow-sm">
+              <Play className="w-4 h-4 mr-2" /> Next Step
             </Button>
             <Button variant="outline" size="icon" onClick={() => window.location.reload()} className="shadow-sm">
               <RotateCcw className="w-4 h-4" />

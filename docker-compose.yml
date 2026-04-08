@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "3004:3004"
+    environment:
+      - PORT=3004
+      - NODE_ENV=development
+      - OLLAMA_API_URL=http://host.docker.internal:11434/api/generate
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./server.js:/app/server.js:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3004', (r) => {if (r.statusCode !== 404) throw new Error(r.statusCode)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        - VITE_LLAMA_SERVER_URL=http://localhost:3004/llama
+        - VITE_QWEN_API_URL=http://localhost:3004/qwen
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src:ro
+      - ./index.html:/app/index.html:ro
+      - ./vite.config.ts:/app/vite.config.ts:ro
+    restart: unless-stopped
+
+  develop:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - NODE_ENV=development
+      - VITE_LLAMA_SERVER_URL=http://localhost:3004/llama
+      - VITE_QWEN_API_URL=http://localhost:3004/qwen
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src
+      - ./index.html:/app/index.html
+      - ./vite.config.ts:/app/vite.config.ts
+      - ./package.json:/app/package.json
+    command: npm run dev
+    restart: unless-stopped
