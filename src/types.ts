@@ -12,7 +12,7 @@ export interface Agent {
   contractForTaskId?: string;
 }
 
-export type TaskStatus = 'Pending' | 'In Progress' | 'Completed' | 'Failed' | 'Blocked';
+export type TaskStatus = 'Pending' | 'In Planning' | 'Awaiting CEO Approval' | 'Awaiting CFO Approval' | 'In Progress' | 'Needs Review' | 'Completed' | 'Failed' | 'Blocked';
 
 export interface Task {
   id: string;
@@ -27,6 +27,9 @@ export interface Task {
   completedAt?: number;
   requiredRole: AgentRole;
   output?: string;
+  plan?: string;
+  reviewRecommendation?: string;
+  reviewStatus?: 'Pending' | 'Accepted' | 'Declined';
 }
 
 export type AlertType = 'info' | 'warning' | 'error' | 'success';

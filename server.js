@@ -14,17 +14,38 @@ app.use(express.json());
 app.post('/llama', async (req, res) => {
   try {
     const { prompt } = req.body;
+    if (!prompt) {
+      return res.status(400).json({ error: 'prompt is required' });
+    }
+    
+    console.log(`Llama request: ${prompt}`);
+    console.log(`Ollama URL: ${OLLAMA_URL}`);
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes
+    
     const response = await fetch(OLLAMA_URL, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'llama3.2',
         prompt: prompt,
         stream: false
-      })
+      }),
+      signal: controller.signal
     });
+    
+    clearTimeout(timeoutId);
+    console.log(`Ollama response: ${response.status}`);
+    
+    if (!response.ok) {
+      return res.status(response.status).json({ error: `Ollama error: ${response.statusText}` });
+    }
+    
     const data = await response.json();
     res.json({ content: data.response });
   } catch (error) {
+    console.error('Llama error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
@@ -32,17 +53,37 @@ app.post('/llama', async (req, res) => {
 app.post('/qwen', async (req, res) => {
   try {
     const { prompt } = req.body;
+    if (!prompt) {
+      return res.status(400).json({ error: 'prompt is required' });
+    }
+    
+    console.log(`Qwen request: ${prompt}`);
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes
+    
     const response = await fetch(OLLAMA_URL, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'qwen2.5-coder',
         prompt: prompt,
         stream: false
-      })
+      }),
+      signal: controller.signal
     });
+    
+    clearTimeout(timeoutId);
+    console.log(`Ollama response: ${response.status}`);
+    
+    if (!response.ok) {
+      return res.status(response.status).json({ error: `Ollama error: ${response.statusText}` });
+    }
+    
     const data = await response.json();
     res.json({ content: data.response });
   } catch (error) {
+    console.error('Qwen error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
@@ -51,4 +92,5 @@ app.listen(PORT, () => {
   console.log(`Model Proxy running on http://localhost:${PORT}`);
   console.log(`- Llama Reasoning at /llama`);
   console.log(`- Qwen Coding at /qwen`);
+  console.log(`- Ollama URL: ${OLLAMA_URL}`);
 });

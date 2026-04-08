@@ -6,6 +6,8 @@ import { AlertsFeed } from '../components/dashboard/AlertsFeed';
 import { motion } from 'framer-motion';
 import { Users, ListTodo, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/Card';
+import { TaskReview } from '../components/dashboard/TaskReview';
+import { ProjectPipeline } from '../components/dashboard/ProjectPipeline';
 
 export const Dashboard: React.FC = () => {
   const { state } = useSimulationContext();
@@ -23,10 +25,14 @@ export const Dashboard: React.FC = () => {
       exit={{ opacity: 0, y: -10 }}
       className="space-y-6"
     >
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight text-zinc-900">Dashboard Overview</h2>
-        <p className="text-sm text-zinc-500 mt-1">High-level metrics and recent alerts.</p>
+      <div className="flex justify-between items-end">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-zinc-900">Workflow Dashboard</h2>
+          <p className="text-sm text-zinc-500 mt-1">Review outputs and monitor progress.</p>
+        </div>
       </div>
+
+      <TaskReview />
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -72,7 +78,8 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 h-[400px]">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <ProjectPipeline />
         <AlertsFeed alerts={state.alerts} />
       </div>
     </motion.div>
