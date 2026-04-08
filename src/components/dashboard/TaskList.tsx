@@ -12,7 +12,7 @@ export const TaskList: React.FC<{ tasks: Task[], agents: Agent[] }> = ({ tasks, 
   const completedTasks = tasks.filter(t => t.status === 'Completed').sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
 
   return (
-    <Card className="col-span-1 md:col-span-2 lg:col-span-2 flex flex-col h-[500px]">
+    <Card className="col-span-1 md:col-span-2 lg:col-span-2 flex flex-col h-full">
       <CardHeader className="pb-0 border-b border-zinc-100">
         <div className="flex items-center justify-between mb-3">
           <CardTitle className="flex items-center gap-2 text-zinc-900">

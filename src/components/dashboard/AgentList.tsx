@@ -6,7 +6,7 @@ import { Users, Briefcase, Activity } from 'lucide-react';
 
 export const AgentList: React.FC<{ agents: Agent[] }> = ({ agents }) => {
   return (
-    <Card className="col-span-1 md:col-span-2 lg:col-span-1 flex flex-col h-[500px]">
+    <Card className="col-span-1 md:col-span-2 lg:col-span-1 flex flex-col h-full">
       <CardHeader className="pb-3 border-b border-zinc-100">
         <CardTitle className="flex items-center gap-2 text-zinc-900">
           <Users className="w-5 h-5 text-zinc-500" />
