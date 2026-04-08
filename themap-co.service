@@ -1,0 +1,11 @@
+[Unit]
+Description=Themap- Co Service
+After=network.target
+
+[Service]
+User=<your-username>
+ExecStart=/usr/bin/gunicorn -c gunicorn_config.py app:app
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

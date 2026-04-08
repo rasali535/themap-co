@@ -8,13 +8,37 @@ This contains everything you need to run your app locally.
 
 View your app in AI Studio: https://ai.studio/apps/03b3e592-f42c-4592-97da-458d26cd19de
 
-## Run Locally
+## Run Locally (Flask API)
 
-**Prerequisites:**  Node.js
+**Prerequisites:**  Python 3.8+, pip
 
+1. (Optional) Create and activate a virtual environment:
+   ```
+   python -m venv env
+   .\env\Scripts\activate  # Windows
+   source env/bin/activate  # Linux/Mac
+   ```
+2. Install Python dependencies:
+   ```
+   pip install flask llamaserver qwen
+   ```
+3. Set environment variables in your `.env` file:
+   - `LLAMA_SERVER_URL` (for Llama endpoint)
+   - `QWEN_API_URL` (for Qwen endpoint)
+   - `PORT` (optional, default 3004)
+4. Run the Flask app:
+   ```
+   python app.py
+   ```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## API Endpoints
+
+- `POST /llama` — JSON: `{ "text": ..., "prompt": ... }`
+- `POST /qwen` — JSON: `{ "code": ... }`
+
+Example curl:
+```
+curl -X POST http://localhost:3004/llama \
+  -H "Content-Type: application/json" \
+  -d '{"text": "What is a good way to learn programming?", "prompt": "Explain the importance of understanding data structures."}'
+```
