@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename);
 
 
 const app = express();
-const PORT = process.env.PORT || 3004;
+const PORT = process.env.PORT || 9999;
 const OLLAMA_URL = process.env.OLLAMA_API_URL || 'http://localhost:11434/api/generate';
 // Global fetch settings are handled per-request to ensure stability across different Node.js environments.
 const LLAMA_MODEL = process.env.VITE_LLAMA_MODEL || 'llama3.2';

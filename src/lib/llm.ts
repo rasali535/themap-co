@@ -2,9 +2,9 @@ interface LLMResponse {
   content: string;
 }
 
-const LLAMA_URL = import.meta.env.VITE_LLAMA_SERVER_URL || 'http://localhost:3004/llama';
-const QWEN_URL = import.meta.env.VITE_QWEN_API_URL || 'http://localhost:3004/qwen';
-const SAVE_URL = 'http://localhost:3004/save-output';
+const LLAMA_URL = import.meta.env.VITE_LLAMA_SERVER_URL || 'http://localhost:9999/llama';
+const QWEN_URL = import.meta.env.VITE_QWEN_API_URL || 'http://localhost:9999/qwen';
+const SAVE_URL = 'http://localhost:9999/save-output';
 
 const fetchWithRetry = async (url: string, options: RequestInit, retries: number = 2, backoff: number = 1000): Promise<Response> => {
   try {
