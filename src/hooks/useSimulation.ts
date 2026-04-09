@@ -40,7 +40,7 @@ const getInitialState = (): SimulationState => {
     ],
     tasks: [],
     alerts: [{ id: generateId(), message: 'System Initialized: Local Workstation Ready.', type: 'info', timestamp: 0 }],
-    chatHistory: [{ id: generateId(), timestamp: 0, senderId: 'system', senderName: 'System', senderRole: 'System', content: 'Regal Workflow Engine is online. Waiting for directives.' }],
+    chatHistory: [{ id: generateId(), timestamp: 0, senderId: 'system', senderName: 'System', senderRole: 'System', content: 'Ras Ali Labs Engine is online. Waiting for directives.' }],
     budget: { total: INITIAL_BUDGET, spent: 0 },
     time: 0,
     isRunning: true,
