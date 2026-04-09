@@ -27,7 +27,18 @@ export const Dashboard: React.FC = () => {
     >
       <div className="flex justify-between items-end">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-zinc-900">Workflow Dashboard</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl font-bold tracking-tight text-zinc-900">Workflow Dashboard</h2>
+            {state.isThinking && (
+              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-regal-gold/10 text-regal-gold rounded-full border border-regal-gold/20 text-[10px] font-bold uppercase tracking-wider animate-pulse">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-regal-gold opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-regal-gold"></span>
+                </span>
+                Reasoning...
+              </div>
+            )}
+          </div>
           <p className="text-sm text-zinc-500 mt-1">Review outputs and monitor progress.</p>
         </div>
       </div>

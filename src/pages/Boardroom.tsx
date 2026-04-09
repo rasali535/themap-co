@@ -8,6 +8,9 @@ export const Boardroom: React.FC = () => {
   const { state } = useSimulationContext();
 
   const meetingMessages = state.chatHistory.filter(msg => msg.type === 'Meeting');
+  const allMeetingMessages = state.streamingMessage?.type === 'Meeting' 
+    ? [...meetingMessages, state.streamingMessage] 
+    : meetingMessages;
 
   return (
     <motion.div 
@@ -28,8 +31,9 @@ export const Boardroom: React.FC = () => {
 
       <div className="flex-1 min-h-0">
         <AgentChat 
-          messages={meetingMessages} 
-          onSendMessage={() => {}} // Boardroom is read-only for now, driven by workflow
+          messages={allMeetingMessages} 
+          isThinking={state.isThinking}
+          onSendMessage={() => {}} 
         />
       </div>
     </motion.div>

@@ -19,7 +19,11 @@ export const Chat: React.FC = () => {
       </div>
 
       <div className="flex-1 min-h-0">
-        <AgentChat messages={state.chatHistory} onSendMessage={sendMessage} />
+        <AgentChat 
+          messages={state.streamingMessage ? [...state.chatHistory, state.streamingMessage] : state.chatHistory} 
+          onSendMessage={sendMessage}
+          isThinking={state.isThinking} 
+        />
       </div>
     </motion.div>
   );

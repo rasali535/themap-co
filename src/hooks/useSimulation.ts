@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Agent, Task, Alert, Budget, SimulationState, AgentRole, TaskStatus, ChatMessage } from '../types';
-import { callLlama, callQwen } from '../lib/llm';
+import { callLlama, callQwen, saveTaskOutput } from '../lib/llm';
 
 const STORAGE_KEY = 'themap_workflow_state';
 const INITIAL_BUDGET = 100000;
@@ -44,6 +44,7 @@ const getInitialState = (): SimulationState => {
     budget: { total: INITIAL_BUDGET, spent: 0 },
     time: 0,
     isRunning: true,
+    isThinking: false,
     performanceHistory: [],
   };
 };
@@ -198,13 +199,31 @@ export const useSimulation = () => {
     }
   }, []);
 
+  const isProcessing = useRef(false);
+
   // Automatic Workflow Trigger
   useEffect(() => {
     if (!state.isRunning) return;
-    const interval = setInterval(() => {
-      processWorkflow();
-    }, 4000); // 4 seconds for a more stable pace
-    return () => clearInterval(interval);
+    
+    let timeoutId: NodeJS.Timeout;
+    
+    const runCycle = async () => {
+      if (isProcessing.current) return;
+      
+      try {
+        isProcessing.current = true;
+        setState(prev => ({ ...prev, isThinking: true }));
+        await processWorkflow();
+      } finally {
+        isProcessing.current = false;
+        setState(prev => ({ ...prev, isThinking: false }));
+        // Schedule next run only after the current one completes
+        timeoutId = setTimeout(runCycle, 4000);
+      }
+    };
+
+    timeoutId = setTimeout(runCycle, 4000);
+    return () => clearTimeout(timeoutId);
   }, [processWorkflow, state.isRunning]);
 
   const acceptTask = useCallback((taskId: string) => {
@@ -212,11 +231,16 @@ export const useSimulation = () => {
         const task = prev.tasks.find(t => t.id === taskId);
         if (!task) return prev;
         
+        // Auto-save output to local filesystem
+        if (task.output) {
+          saveTaskOutput(task.title, task.output).catch(err => console.error('Auto-save failed:', err));
+        }
+
         return {
           ...prev,
           tasks: prev.tasks.map(t => t.id === taskId ? { ...t, status: 'Completed', reviewStatus: 'Accepted' } : t),
           agents: prev.agents.map(a => a.id === task.assignedTo ? { ...a, status: 'Idle', tasksCompleted: a.tasksCompleted + 1 } : a),
-          alerts: [{ id: generateId(), message: `Task "${task.title}" finalized.`, type: 'success', timestamp: prev.time }, ...prev.alerts]
+          alerts: [{ id: generateId(), message: `Task "${task.title}" finalized and saved to disk.`, type: 'success', timestamp: prev.time }, ...prev.alerts]
         };
      });
   }, []);
@@ -257,28 +281,49 @@ export const useSimulation = () => {
     const ceo = stateRef.current.agents.find(a => a.role === 'CEO');
     const recentHistory = stateRef.current.chatHistory.slice(-5).map(m => `${m.senderName}: ${m.content}`).join('\n');
     
-    const reasoning = await callLlama(content, `You are CEO Ivy. Your role is to understand the owner's request and DELEGATE tasks to the team. 
+    setState(prev => ({ ...prev, isThinking: true }));
+
+    const streamingId = generateId();
+    let finalContent = '';
+
+    const { streamLlama } = await import('../lib/llm');
+
+    await streamLlama(content, (updatedContent) => {
+      finalContent = updatedContent;
+      setState(prev => ({
+        ...prev,
+        streamingMessage: {
+          id: streamingId,
+          timestamp: prev.time,
+          senderId: ceo?.id || 'ceo',
+          senderName: ceo?.name || 'CEO Ivy',
+          senderRole: 'CEO',
+          content: updatedContent,
+          type: 'Meeting'
+        }
+      }));
+    }, `You are CEO Ivy. Your role is to understand the owner's request and DELEGATE tasks to the team. 
     History:\n${recentHistory}`);
     
     setState(prev => {
       const ceoReply: ChatMessage = {
-        id: generateId(),
+        id: streamingId,
         timestamp: prev.time,
         senderId: ceo?.id || 'ceo',
         senderName: ceo?.name || 'CEO Ivy',
         senderRole: 'CEO',
-        content: reasoning,
-        type: 'Meeting' // Delegations appear in Boardroom
+        content: finalContent,
+        type: 'Meeting'
       };
 
       let extraTasks: Task[] = [];
-      const lowerReasoning = reasoning.toLowerCase();
+      const lowerReasoning = finalContent.toLowerCase();
 
       if (lowerReasoning.includes('task') || lowerReasoning.includes('delegating') || lowerReasoning.includes('execute') || lowerReasoning.includes('build')) {
           const newTask: Task = {
             id: generateId(),
             title: content.length < 50 ? content : content.slice(0, 30) + "...",
-            description: reasoning,
+            description: finalContent,
             complexity: 5,
             status: 'Pending',
             assignedTo: null,
@@ -292,6 +337,8 @@ export const useSimulation = () => {
 
       return {
         ...prev,
+        isThinking: false,
+        streamingMessage: undefined,
         tasks: [...prev.tasks, ...extraTasks],
         chatHistory: [...prev.chatHistory, ceoReply]
       };

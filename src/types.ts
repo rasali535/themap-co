@@ -64,6 +64,8 @@ export interface SimulationState {
   budget: Budget;
   time: number; // Simulation time in hours
   isRunning: boolean;
+  isThinking?: boolean;
+  streamingMessage?: ChatMessage;
   performanceHistory: { time: number; completionRate: number; activeTasks: number }[];
 }
 

@@ -4,7 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 import { MessageSquare, Send } from 'lucide-react';
 import { Button } from '../ui/Button';
 
-export const AgentChat: React.FC<{ messages: ChatMessage[], onSendMessage: (msg: string) => void }> = ({ messages, onSendMessage }) => {
+export const AgentChat: React.FC<{ 
+  messages: ChatMessage[], 
+  onSendMessage: (msg: string) => void,
+  isThinking?: boolean
+}> = ({ messages, onSendMessage, isThinking }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [inputValue, setInputValue] = useState('');
 
@@ -12,7 +16,7 @@ export const AgentChat: React.FC<{ messages: ChatMessage[], onSendMessage: (msg:
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, isThinking]);
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,7 +81,21 @@ export const AgentChat: React.FC<{ messages: ChatMessage[], onSendMessage: (msg:
               </div>
             );
           })}
-          {messages.length === 0 && (
+          {isThinking && (
+            <div className="flex flex-col items-start animate-pulse">
+              <div className="flex items-center gap-2 mb-1 px-1">
+                <span className="font-bold text-[11px] text-zinc-400 uppercase tracking-wider">System</span>
+              </div>
+              <div className="chat-bubble-agent bg-zinc-100 border-zinc-200">
+                <div className="flex gap-1 py-1">
+                  <div className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                  <div className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                  <div className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce"></div>
+                </div>
+              </div>
+            </div>
+          )}
+          {messages.length === 0 && !isThinking && (
             <div className="text-sm text-zinc-500 text-center py-8 font-medium">No messages yet.</div>
           )}
         </div>

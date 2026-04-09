@@ -49,8 +49,13 @@ export const TaskShowcase: React.FC = () => {
                         <span className="text-xs font-semibold text-regal-red">{agent?.name} ({agent?.role})</span>
                       </div>
                     </div>
-                    <div className="px-3 py-1 bg-regal-green/10 text-regal-green rounded-full text-[10px] font-bold uppercase tracking-widest border border-regal-green/20">
-                      Executed
+                    <div className="flex gap-2">
+                      <div className="px-3 py-1 bg-zinc-100 text-zinc-500 rounded-full text-[10px] font-bold uppercase tracking-widest border border-zinc-200">
+                        Saved to Disk
+                      </div>
+                      <div className="px-3 py-1 bg-regal-green/10 text-regal-green rounded-full text-[10px] font-bold uppercase tracking-widest border border-regal-green/20">
+                        Executed
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="p-6">

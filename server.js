@@ -1,34 +1,58 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { setGlobalDispatcher, Agent } from 'undici';
-
-// Increase timeouts for global fetch to handle slow LLM responses
-setGlobalDispatcher(new Agent({
-  headersTimeout: 600000, // 10 minutes
-  bodyTimeout: 600000,    // 10 minutes
-  connectTimeout: 60000   // 1 minute
-}));
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 
 const app = express();
 const PORT = process.env.PORT || 3004;
 const OLLAMA_URL = process.env.OLLAMA_API_URL || 'http://localhost:11434/api/generate';
+// Global fetch settings are handled per-request to ensure stability across different Node.js environments.
 const LLAMA_MODEL = process.env.VITE_LLAMA_MODEL || 'llama3.2';
 const QWEN_MODEL = process.env.VITE_QWEN_MODEL || 'qwen2.5-coder';
 
 app.use(cors());
 app.use(express.json());
 
+
 app.get('/debug', async (req, res) => {
   try {
+    console.log('Debug: Checking Ollama version...');
     const versionUrl = OLLAMA_URL.replace('/api/generate', '/api/version');
-    const response = await fetch(versionUrl);
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 seconds for debug
+    
+    const response = await fetch(versionUrl, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    
     const data = await response.json();
-    res.json({ status: 'ok', ollama_version: data, internal_url: OLLAMA_URL });
+    console.log('Debug: Ollama version response:', data);
+    res.json({ 
+      status: 'ok', 
+      ollama_version: data, 
+      internal_url: OLLAMA_URL,
+      node_version: process.version,
+      env: {
+        PORT,
+        OLLAMA_URL
+      }
+    });
   } catch (error) {
-    res.status(500).json({ status: 'error', message: error.message, target: OLLAMA_URL });
+    console.error('Debug Error:', error.message);
+    res.status(500).json({ 
+      status: 'error', 
+      message: error.message, 
+      name: error.name,
+      target: OLLAMA_URL 
+    });
   }
 });
 
@@ -51,17 +75,37 @@ app.post('/llama', async (req, res) => {
       body: JSON.stringify({
         model: LLAMA_MODEL,
         prompt: prompt,
-        stream: false
+        stream: req.body.stream || false
       }),
       signal: controller.signal
     });
     
     clearTimeout(timeoutId);
-    console.log(`Ollama response: ${response.status}`);
+    console.log(`Ollama response status: ${response.status}, streaming: ${req.body.stream || false}`);
     
     if (!response.ok) {
       const errorText = await response.text();
       return res.status(response.status).json({ error: `Ollama error (${response.status}): ${errorText}` });
+    }
+
+    // Handle Streaming
+    if (req.body.stream) {
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value, { stream: true });
+        res.write(chunk);
+      }
+      res.end();
+      return;
     }
     
     const data = await response.json();
@@ -95,17 +139,37 @@ app.post('/qwen', async (req, res) => {
       body: JSON.stringify({
         model: QWEN_MODEL,
         prompt: prompt,
-        stream: false
+        stream: req.body.stream || false
       }),
       signal: controller.signal
     });
     
     clearTimeout(timeoutId);
-    console.log(`Ollama response: ${response.status}`);
+    console.log(`Ollama response status: ${response.status}, streaming: ${req.body.stream || false}`);
     
     if (!response.ok) {
       const errorText = await response.text();
       return res.status(response.status).json({ error: `Ollama error (${response.status}): ${errorText}` });
+    }
+
+    // Handle Streaming
+    if (req.body.stream) {
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value, { stream: true });
+        res.write(chunk);
+      }
+      res.end();
+      return;
     }
     
     const data = await response.json();
@@ -121,9 +185,40 @@ app.post('/qwen', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+app.post('/save-output', async (req, res) => {
+  try {
+    const { filename, content } = req.body;
+    if (!filename || !content) {
+      return res.status(400).json({ error: 'filename and content are required' });
+    }
+
+    const safeFilename = filename.replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.txt';
+    const filePath = path.join(__dirname, 'results', safeFilename);
+
+    // Ensure results directory exists
+    const resultsDir = path.join(__dirname, 'results');
+    if (!fs.existsSync(resultsDir)) {
+      fs.mkdirSync(resultsDir);
+    }
+
+    fs.writeFileSync(filePath, content);
+    console.log(`Saved output to ${filePath}`);
+    res.json({ status: 'success', path: filePath });
+  } catch (error) {
+    console.error('Save Output Error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+const server = app.listen(PORT, () => {
   console.log(`Model Proxy running on http://localhost:${PORT}`);
   console.log(`- Llama Reasoning at /llama (Model: ${LLAMA_MODEL})`);
   console.log(`- Qwen Coding at /qwen (Model: ${QWEN_MODEL})`);
   console.log(`- Ollama URL: ${OLLAMA_URL}`);
 });
+
+// Set server timeout to 0 (infinity) to prevent Node.js from closing connections
+// while waiting for extremely slow LLM responses.
+server.timeout = 0;
+server.keepAliveTimeout = 0;
+
