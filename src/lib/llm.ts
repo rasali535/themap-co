@@ -15,8 +15,14 @@ export const callLlama = async (prompt: string, context: string = ''): Promise<s
         stream: false
       }),
     });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      return `Error: ${errorData.error || response.statusText}`;
+    }
+
     const data = await response.json();
-    return data.response || data.content || 'I encountered an error while reasoning.';
+    return data.content || data.response || 'I encountered an error while reasoning.';
   } catch (error) {
     console.error('Llama Error:', error);
     return 'Llama is currently unavailable for reasoning.';
@@ -33,8 +39,14 @@ export const callQwen = async (prompt: string, taskDescription: string = ''): Pr
         stream: false
       }),
     });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      return `Error: ${errorData.error || response.statusText}`;
+    }
+
     const data = await response.json();
-    return data.response || data.content || 'I encountered an error while coding.';
+    return data.content || data.response || 'I encountered an error while coding.';
   } catch (error) {
     console.error('Qwen Error:', error);
     return 'Qwen is currently unavailable for coding.';

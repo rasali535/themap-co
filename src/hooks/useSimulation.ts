@@ -138,7 +138,8 @@ export const useSimulation = () => {
              senderId: agent?.id || 'system',
              senderName: agent?.name || 'Agent',
              senderRole: agent?.role || 'Developer',
-             content: `Meeting concluded for "${task.title}". Plan: ${plan}`
+             content: `[PLANNING] Meeting concluded for "${task.title}". Plan: ${plan}`,
+             type: 'Meeting'
            }]
          }));
          addAlert(`Planning: CEO approval required for the "${task.title}" roadmap.`, 'info');
@@ -152,14 +153,15 @@ export const useSimulation = () => {
         setState(prev => ({
           ...prev,
           tasks: prev.tasks.map(t => t.id === task.id ? { ...t, status: 'Awaiting CFO Approval' } : t),
-          chatHistory: [...prev.chatHistory, {
-            id: generateId(),
-            timestamp: prev.time,
-            senderId: ceo?.id || 'ceo',
-            senderName: ceo?.name || 'CEO',
-            senderRole: 'CEO',
-            content: `CEO Approval for "${task.title}": ${approvalComment}`
-          }]
+           chatHistory: [...prev.chatHistory, {
+             id: generateId(),
+             timestamp: prev.time,
+             senderId: ceo?.id || 'ceo',
+             senderName: ceo?.name || 'CEO',
+             senderRole: 'CEO',
+             content: `[CEO APPROVAL] CEO Review for "${task.title}": ${approvalComment}`,
+             type: 'Meeting'
+           }]
         }));
         addAlert(`Approval: CEO has approved the plan for "${task.title}". Moving to CFO review.`, 'success');
       }
@@ -173,14 +175,15 @@ export const useSimulation = () => {
           setState(prev => ({
             ...prev,
             tasks: prev.tasks.map(t => t.id === task.id ? { ...t, status: 'In Progress' } : t),
-            chatHistory: [...prev.chatHistory, {
-              id: generateId(),
-              timestamp: prev.time,
-              senderId: cfo?.id || 'cfo',
-              senderName: cfo?.name || 'CFO',
-              senderRole: 'CFO',
-              content: `Budget check for "${task.title}" passed. Execution authorized.`
-            }]
+             chatHistory: [...prev.chatHistory, {
+               id: generateId(),
+               timestamp: prev.time,
+               senderId: cfo?.id || 'cfo',
+               senderName: cfo?.name || 'CFO',
+               senderRole: 'CFO',
+               content: `[CFO APPROVAL] Budget check for "${task.title}" passed. Execution authorized.`,
+               type: 'Meeting'
+             }]
           }));
           addAlert(`Budget: CFO authorized funding for "${task.title}". Execution starting.`, 'success');
         } else {

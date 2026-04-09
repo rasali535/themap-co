@@ -2,7 +2,7 @@ import React from 'react';
 import { useSimulationContext } from '../../context/SimulationContext';
 import { Card, CardContent } from '../ui/Card';
 import { Button } from '../ui/Button';
-import { Check, X, ClipboardList, MessageSquare, AlertCircle } from 'lucide-react';
+import { Check, X, ClipboardList, MessageSquare, AlertCircle, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const TaskReview: React.FC = () => {
@@ -36,36 +36,39 @@ export const TaskReview: React.FC = () => {
                     <div className="flex flex-col md:flex-row justify-between gap-6">
                       <div className="flex-1 space-y-4">
                         <div className="flex items-center gap-3">
-                          <span className="bg-indigo-50 text-indigo-700 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
+                          <span className="bg-regal-red/10 text-regal-red text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-widest border border-regal-red/20">
                             {agent?.role || 'Agent'} Submitted
                           </span>
                           <h4 className="text-lg font-bold text-zinc-900">{task.title}</h4>
                         </div>
                         
-                        <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-100">
-                          <div className="flex items-center gap-2 text-zinc-500 mb-2">
+                        <div className="bg-white rounded-2xl p-5 border border-zinc-100 shadow-inner">
+                          <div className="flex items-center gap-2 text-zinc-400 mb-3">
                             <ClipboardList className="w-4 h-4" />
-                            <span className="text-xs font-bold uppercase tracking-tight">Approved Plan</span>
+                            <span className="text-[10px] font-bold uppercase tracking-widest">Approved Roadmap</span>
                           </div>
-                          <p className="text-sm text-zinc-600 mb-4">
+                          <p className="text-sm text-zinc-600 mb-6 leading-relaxed">
                             {task.plan}
                           </p>
                           
-                          <div className="flex items-center gap-2 text-zinc-500 mb-2 pt-4 border-t border-zinc-200/60">
+                          <div className="flex items-center gap-2 text-zinc-400 mb-3 pt-5 border-t border-zinc-100">
                             <MessageSquare className="w-4 h-4" />
-                            <span className="text-xs font-bold uppercase tracking-tight">Final Output</span>
+                            <span className="text-[10px] font-bold uppercase tracking-widest">Final Deliverable</span>
                           </div>
-                          <p className="text-sm text-zinc-600 italic line-clamp-3">
+                          <p className="text-sm text-zinc-600 italic leading-relaxed">
                             "{task.output}"
                           </p>
                         </div>
 
-                        <div className="bg-amber-50/50 rounded-xl p-4 border border-amber-100/50">
-                          <div className="flex items-center gap-2 text-amber-600 mb-1">
-                            <AlertCircle className="w-4 h-4" />
-                            <span className="text-xs font-bold uppercase tracking-tight text-amber-600">CEO Recommendation</span>
+                        <div className="bg-gradient-to-br from-amber-50 to-amber-100/50 rounded-2xl p-5 border border-regal-gold/20 shadow-sm relative overflow-hidden group">
+                          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                            <ShieldCheck className="w-12 h-12 text-regal-gold" />
                           </div>
-                          <p className="text-sm text-zinc-700 font-medium">
+                          <div className="flex items-center gap-2 text-regal-gold mb-1.5 relative z-10">
+                            <AlertCircle className="w-4 h-4" />
+                            <span className="text-[10px] font-bold uppercase tracking-widest">CEO Recommendation</span>
+                          </div>
+                          <p className="text-sm text-zinc-800 font-semibold relative z-10">
                             {task.reviewRecommendation || "Looking good, proceed with caution."}
                           </p>
                         </div>

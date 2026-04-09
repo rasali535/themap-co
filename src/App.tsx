@@ -11,6 +11,8 @@ import { Dashboard } from './pages/Dashboard';
 import { Team } from './pages/Team';
 import { Tasks } from './pages/Tasks';
 import { Chat } from './pages/Chat';
+import { Boardroom } from './pages/Boardroom';
+import { TaskShowcase } from './pages/TaskShowcase';
 import { AnimatePresence } from 'framer-motion';
 
 export default function App() {
@@ -21,8 +23,11 @@ export default function App() {
           <Routes>
             <Route path="/" element={<AppLayout />}>
               <Route index element={<Dashboard />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="boardroom" element={<Boardroom />} />
               <Route path="team" element={<Team />} />
               <Route path="tasks" element={<Tasks />} />
+              <Route path="showcase" element={<TaskShowcase />} />
               <Route path="chat" element={<Chat />} />
             </Route>
           </Routes>

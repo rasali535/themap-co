@@ -15,20 +15,20 @@ export const ProjectPipeline: React.FC = () => {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'In Planning': return <UserCheck className="w-4 h-4 text-blue-500" />;
-      case 'Awaiting CEO Approval': return <ShieldCheck className="w-4 h-4 text-purple-500" />;
-      case 'Awaiting CFO Approval': return <DollarSign className="w-4 h-4 text-emerald-500" />;
-      case 'In Progress': return <PlayCircle className="w-4 h-4 text-amber-500 animate-pulse" />;
+      case 'In Planning': return <UserCheck className="w-4 h-4 text-regal-red" />;
+      case 'Awaiting CEO Approval': return <ShieldCheck className="w-4 h-4 text-regal-gold" />;
+      case 'Awaiting CFO Approval': return <DollarSign className="w-4 h-4 text-regal-green" />;
+      case 'In Progress': return <PlayCircle className="w-4 h-4 text-zinc-900 animate-pulse" />;
       default: return <Clock className="w-4 h-4 text-zinc-400" />;
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'In Planning': return 'bg-blue-50 text-blue-700 border-blue-100';
-      case 'Awaiting CEO Approval': return 'bg-purple-50 text-purple-700 border-purple-100';
-      case 'Awaiting CFO Approval': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
-      case 'In Progress': return 'bg-amber-50 text-amber-700 border-amber-100';
+      case 'In Planning': return 'bg-red-50 text-regal-red border-red-100';
+      case 'Awaiting CEO Approval': return 'bg-amber-50 text-regal-gold border-amber-100';
+      case 'Awaiting CFO Approval': return 'bg-emerald-50 text-regal-green border-emerald-100';
+      case 'In Progress': return 'bg-zinc-900 text-white border-zinc-900';
       default: return 'bg-zinc-50 text-zinc-700 border-zinc-100';
     }
   };

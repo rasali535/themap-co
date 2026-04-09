@@ -7,9 +7,22 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3004;
 const OLLAMA_URL = process.env.OLLAMA_API_URL || 'http://localhost:11434/api/generate';
+const LLAMA_MODEL = process.env.VITE_LLAMA_MODEL || 'llama3.2';
+const QWEN_MODEL = process.env.VITE_QWEN_MODEL || 'qwen2.5-coder';
 
 app.use(cors());
 app.use(express.json());
+
+app.get('/debug', async (req, res) => {
+  try {
+    const versionUrl = OLLAMA_URL.replace('/api/generate', '/api/version');
+    const response = await fetch(versionUrl);
+    const data = await response.json();
+    res.json({ status: 'ok', ollama_version: data, internal_url: OLLAMA_URL });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message, target: OLLAMA_URL });
+  }
+});
 
 app.post('/llama', async (req, res) => {
   try {
@@ -28,7 +41,7 @@ app.post('/llama', async (req, res) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'llama3.2',
+        model: LLAMA_MODEL,
         prompt: prompt,
         stream: false
       }),
@@ -66,7 +79,7 @@ app.post('/qwen', async (req, res) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'qwen2.5-coder',
+        model: QWEN_MODEL,
         prompt: prompt,
         stream: false
       }),

@@ -2,7 +2,7 @@ import React from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
 import { useSimulationContext } from '../../context/SimulationContext';
 import { Button } from '../ui/Button';
-import { Play, Pause, RotateCcw, Activity, LayoutDashboard, Users, ListTodo, MessageSquare } from 'lucide-react';
+import { Play, Pause, RotateCcw, Activity, LayoutDashboard, Users, ListTodo, MessageSquare, CheckCircle2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export const AppLayout: React.FC = () => {
@@ -10,22 +10,24 @@ export const AppLayout: React.FC = () => {
 
   const navItems = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/boardroom', icon: MessageSquare, label: 'Boardroom' },
+    { to: '/tasks', icon: ListTodo, label: 'Task List' },
+    { to: '/showcase', icon: CheckCircle2, label: 'Task Showcase' },
     { to: '/team', icon: Users, label: 'Team Roster' },
-    { to: '/tasks', icon: ListTodo, label: 'Tasks & Review' },
-    { to: '/chat', icon: MessageSquare, label: 'Communications' },
+    { to: '/chat', icon: MessageSquare, label: 'Direct Comms' },
   ];
 
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900 font-sans flex selection:bg-zinc-200">
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-zinc-200 flex flex-col hidden md:flex">
-        <div className="p-6 flex items-center gap-3 border-b border-zinc-100">
-          <div className="bg-zinc-900 text-white p-2 rounded-xl shadow-sm">
+        <div className="p-6 flex items-center gap-3 border-b border-zinc-100 bg-zinc-900/5">
+          <div className="bg-regal-red text-white p-2.5 rounded-2xl shadow-lg ring-4 ring-regal-red/10">
             <Activity className="w-5 h-5" />
           </div>
           <div>
             <h1 className="text-lg font-bold tracking-tight text-zinc-900">AI Workflow</h1>
-            <p className="text-[10px] text-zinc-500 font-medium mt-0.5 uppercase tracking-wider">Workflow Engine</p>
+            <p className="text-[10px] text-regal-gold font-bold mt-0.5 uppercase tracking-[0.2em]">Regal Edition</p>
           </div>
         </div>
         
@@ -35,7 +37,7 @@ export const AppLayout: React.FC = () => {
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative ${
                   isActive
                     ? 'bg-zinc-100 text-zinc-900'
                     : 'text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900'
@@ -44,6 +46,9 @@ export const AppLayout: React.FC = () => {
             >
               <item.icon className="w-4 h-4" />
               {item.label}
+              {item.label === 'Boardroom' && state.tasks.some(t => t.status === 'In Planning') && (
+                <span className="absolute right-3 w-2 h-2 bg-regal-gold rounded-full animate-ping" />
+              )}
             </NavLink>
           ))}
         </nav>
@@ -71,11 +76,11 @@ export const AppLayout: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-3 ml-auto">
-            <div className="text-xs font-mono font-medium bg-zinc-100 px-3 py-2 rounded-lg border border-zinc-200 text-zinc-600 flex items-center gap-2 shadow-sm">
-              <div className={`w-2 h-2 rounded-full bg-emerald-500 animate-pulse`} />
+            <div className="text-xs font-mono font-bold bg-white px-4 py-2.5 rounded-2xl border border-zinc-200 text-zinc-600 flex items-center gap-2 shadow-sm">
+              <div className={`w-2.5 h-2.5 rounded-full bg-regal-green animate-pulse shadow-[0_0_8px_rgba(5,150,105,0.6)]`} />
               Step {state.time}
             </div>
-            <Button onClick={() => sendMessage("Proceed with the next steps of the project.")} variant="default" className="w-40 shadow-sm">
+            <Button onClick={() => sendMessage("Proceed with the next steps of the project.")} variant="default" className="h-11 px-8 rounded-2xl bg-regal-red hover:bg-red-700 shadow-lg shadow-red-200 transition-all active:scale-95 text-sm font-bold">
               <Play className="w-4 h-4 mr-2" /> Next Step
             </Button>
             <Button variant="outline" size="icon" onClick={() => window.location.reload()} className="shadow-sm">

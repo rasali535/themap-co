@@ -4,8 +4,39 @@
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  /* Regal Palette */
+  --color-regal-red: #DC2626;
+  --color-regal-gold: #D4AF37;
+  --color-regal-green: #059669;
+  --color-regal-black: #0F172A;
 }
 
 body {
-  @apply antialiased text-zinc-900 bg-zinc-50;
+  @apply antialiased text-zinc-900 bg-[#FBFBFA];
+}
+
+/* Chat Bubbles custom styles */
+.chat-bubble-user {
+  @apply bg-regal-red text-white rounded-2xl rounded-tr-none px-4 py-3 shadow-md;
+}
+
+.chat-bubble-agent {
+  @apply bg-white border border-zinc-200 text-zinc-800 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm;
+}
+
+.chat-bubble-ceo {
+  @apply bg-gradient-to-br from-amber-50 to-amber-100 border border-regal-gold/30 text-zinc-800 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm;
+}
+
+.chat-bubble-cfo {
+  @apply bg-emerald-50 border border-regal-green/30 text-zinc-800 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm;
+}
+
+.glass-card {
+  @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-xl;
+}
+
+.regal-gradient {
+  @apply bg-gradient-to-r from-regal-red via-regal-gold to-regal-green text-transparent bg-clip-text;
 }

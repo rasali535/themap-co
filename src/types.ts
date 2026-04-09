@@ -53,6 +53,7 @@ export interface ChatMessage {
   senderName: string;
   senderRole: AgentRole | 'System';
   content: string;
+  type?: 'Chat' | 'Meeting';
 }
 
 export interface SimulationState {
