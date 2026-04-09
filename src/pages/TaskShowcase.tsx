@@ -2,12 +2,22 @@ import React from 'react';
 import { useSimulationContext } from '../context/SimulationContext';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
-import { Eye, CheckCircle2, ClipboardList, MessageSquare } from 'lucide-react';
+import { Eye, CheckCircle2, ClipboardList, MessageSquare, Download } from 'lucide-react';
 
 export const TaskShowcase: React.FC = () => {
   const { state } = useSimulationContext();
   
   const completedTasks = state.tasks.filter(t => t.status === 'Completed' || t.output);
+  
+  const handleDownload = (title: string, content: string) => {
+    const element = document.createElement("a");
+    const file = new Blob([content], {type: 'text/plain'});
+    element.href = URL.createObjectURL(file);
+    element.download = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.txt`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
 
   return (
     <motion.div 
@@ -71,9 +81,20 @@ export const TaskShowcase: React.FC = () => {
                       </div>
                       
                       <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-zinc-400">
-                          <MessageSquare className="w-4 h-4" />
-                          <span className="text-[10px] font-bold uppercase tracking-widest">Final Task Deliverable</span>
+                        <div className="flex items-center justify-between gap-2 text-zinc-400">
+                          <div className="flex items-center gap-2">
+                            <MessageSquare className="w-4 h-4" />
+                            <span className="text-[10px] font-bold uppercase tracking-widest">Final Task Deliverable</span>
+                          </div>
+                          {task.output && (
+                            <button 
+                              onClick={() => handleDownload(task.title, task.output!)}
+                              className="flex items-center gap-1.5 px-3 py-1 bg-zinc-900 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-zinc-800 transition-colors shadow-sm"
+                            >
+                              <Download className="w-3 h-3" />
+                              Download
+                            </button>
+                          )}
                         </div>
                         <div className="bg-white rounded-2xl p-6 border border-zinc-200 text-sm text-zinc-900 font-medium leading-relaxed shadow-sm min-h-[120px]">
                           {task.output}
