@@ -2,147 +2,125 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Agent, Task, Alert, Budget, SimulationState, AgentRole, TaskStatus, ChatMessage } from '../types';
 import { callLlama, callQwen } from '../lib/llm';
 
-const INITIAL_BUDGET = 50000;
-// No more TICK_RATE_MS as we are moving to 100% workflow
+const STORAGE_KEY = 'themap_workflow_state';
+const INITIAL_BUDGET = 100000;
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
-const NAMES = ['Alice', 'Bob', 'Charlie', 'Diana', 'Eve', 'Frank', 'Grace', 'Hank', 'Ivy', 'Jack'];
-
-const createAgent = (role: AgentRole, skillLevel: number, contractForTaskId?: string): Agent => ({
+const createAgent = (role: AgentRole, name: string, skillLevel: number): Agent => ({
   id: generateId(),
-  name: `${NAMES[Math.floor(Math.random() * NAMES.length)]} (${role})`,
+  name: `${name} (${role})`,
   role,
   status: 'Idle',
   skillLevel,
-  costPerHour: skillLevel * 10 + 20,
+  costPerHour: skillLevel * 15 + 25,
   tasksCompleted: 0,
-  contractForTaskId,
 });
 
-const TASK_TEMPLATES = [
-  { title: 'Design Landing Page', role: 'Designer' as AgentRole, complexity: 4 },
-  { title: 'Implement Auth API', role: 'Developer' as AgentRole, complexity: 7 },
-  { title: 'Write Unit Tests', role: 'QA' as AgentRole, complexity: 3 },
-  { title: 'Market Research', role: 'Researcher' as AgentRole, complexity: 5 },
-  { title: 'Optimize Database', role: 'Developer' as AgentRole, complexity: 8 },
-  { title: 'Create Logo', role: 'Designer' as AgentRole, complexity: 6 },
-  { title: 'E2E Testing', role: 'QA' as AgentRole, complexity: 6 },
-  { title: 'Competitor Analysis', role: 'Researcher' as AgentRole, complexity: 4 },
-  { title: 'Refactor Legacy Code', role: 'Developer' as AgentRole, complexity: 9 },
-  { title: 'Design System Update', role: 'Designer' as AgentRole, complexity: 8 },
-];
+const getInitialState = (): SimulationState => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && Array.isArray(parsed.agents) && Array.isArray(parsed.tasks)) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load saved state:', e);
+  }
 
-const createTask = (time: number): Task => {
-  const template = TASK_TEMPLATES[Math.floor(Math.random() * TASK_TEMPLATES.length)];
-  // Randomize complexity slightly
-  const complexity = Math.max(1, Math.min(10, template.complexity + Math.floor(Math.random() * 3) - 1));
   return {
-    id: generateId(),
-    title: template.title,
-    description: `Task requiring ${template.role} skills.`,
-    complexity,
-    status: 'Pending',
-    assignedTo: null,
-    progress: 0,
-    createdAt: time,
-    requiredRole: template.role,
+    agents: [
+      createAgent('CEO', 'Ivy', 10),
+      createAgent('CFO', 'Silas', 9),
+      createAgent('Developer', 'Marcus', 8),
+      createAgent('Designer', 'Elena', 7),
+      createAgent('Researcher', 'Soren', 6),
+    ],
+    tasks: [],
+    alerts: [{ id: generateId(), message: 'System Initialized: Local Workstation Ready.', type: 'info', timestamp: 0 }],
+    chatHistory: [{ id: generateId(), timestamp: 0, senderId: 'system', senderName: 'System', senderRole: 'System', content: 'Regal Workflow Engine is online. Waiting for directives.' }],
+    budget: { total: INITIAL_BUDGET, spent: 0 },
+    time: 0,
+    isRunning: true,
+    performanceHistory: [],
   };
 };
 
 export const useSimulation = () => {
-  const [state, setState] = useState<SimulationState>({
-    agents: [
-      createAgent('CEO', 10),
-      createAgent('CFO', 9),
-      createAgent('HR', 8),
-      createAgent('Developer', 5),
-      createAgent('Designer', 6),
-    ],
-    tasks: [createTask(0), createTask(0), createTask(0)],
-    alerts: [{ id: generateId(), message: 'Simulation started.', type: 'info', timestamp: 0 }],
-    chatHistory: [{ id: generateId(), timestamp: 0, senderId: 'system', senderName: 'System', senderRole: 'System', content: 'Simulation initialized. Agents are ready.' }],
-    budget: { total: INITIAL_BUDGET, spent: 0 },
-    time: 0,
-    isRunning: false,
-    performanceHistory: [],
-  });
+  const [state, setState] = useState<SimulationState>(getInitialState());
+
+  // Persistence logic
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }, [state]);
 
   const stateRef = useRef(state);
   stateRef.current = state;
 
-  const addAlert = (message: string, type: Alert['type']) => {
+  const addAlert = useCallback((message: string, type: Alert['type']) => {
     setState(prev => ({
       ...prev,
       alerts: [{ id: generateId(), message, type, timestamp: prev.time }, ...prev.alerts].slice(0, 50)
     }));
-  };
-
-  const toggleSimulation = useCallback(() => {
-    setState(prev => ({ ...prev, isRunning: !prev.isRunning }));
   }, []);
 
-  // Main Workflow Processor
+  // Automated Workflow Processor
   const processWorkflow = useCallback(async () => {
-    setState(prevState => {
-      // 1. Initial State Sync/Check
-      const agents = prevState.agents.map(a => ({ ...a }));
-      const tasks = prevState.tasks.map(t => ({ ...t }));
-      let { budget, time } = prevState;
-      const newAlerts: Alert[] = [];
-      const newChats: ChatMessage[] = [];
-
-      const addAlertLocal = (message: string, type: Alert['type']) => {
-        newAlerts.push({ id: generateId(), message, type, timestamp: time });
-      };
-
-      // 2. State Machine Logic
-      tasks.forEach(task => {
-        // --- Phase 1: Assignment ---
-        if (task.status === 'Pending') {
-          const availableAgent = agents.find(a => a.role === task.requiredRole && a.status === 'Idle');
-          if (availableAgent) {
-            task.assignedTo = availableAgent.id;
-            task.status = 'In Planning';
-            availableAgent.status = 'Working';
-            addAlertLocal(`Meeting: Agents are convening to discuss "${task.title}".`, 'info');
-          }
-        }
-      });
-
-      return {
-        ...prevState,
-        agents,
-        tasks,
-        alerts: [...newAlerts, ...prevState.alerts].slice(0, 50),
-        chatHistory: [...prevState.chatHistory, ...newChats],
-        time: time + 1
-      };
-    });
-
-    // 3. Async Logic for active tasks
     const currentTasks = stateRef.current.tasks;
     
     for (const task of currentTasks) {
+      // --- Phase 1: Assignment (Sync) ---
+      if (task.status === 'Pending') {
+        const availableAgent = stateRef.current.agents.find(a => a.role === task.requiredRole && a.status === 'Idle');
+        if (availableAgent) {
+           setState(prev => ({
+             ...prev,
+             agents: prev.agents.map(a => a.id === availableAgent.id ? { ...a, status: 'Working' } : a),
+             tasks: prev.tasks.map(t => t.id === task.id ? { ...t, status: 'In Planning', assignedTo: availableAgent.id } : t),
+             alerts: [{ id: generateId(), message: `Task assigned to ${availableAgent.name}.`, type: 'info', timestamp: prev.time }, ...prev.alerts]
+           }));
+           return; // Exit to let the next cycle pick it up
+        }
+      }
+
       // --- Phase 2: Planning Meeting ---
       if (task.status === 'In Planning' && !task.plan) {
          const agent = stateRef.current.agents.find(a => a.id === task.assignedTo);
-         const plan = await callLlama(`Discuss and map a way forward for the task: "${task.title}". Context: ${task.description}. What is the execution plan?`, `Agent ${agent?.name} is leading the meeting.`);
+         const ceo = stateRef.current.agents.find(a => a.role === 'CEO');
+         
+         const proposedPlan = await callLlama(`Discuss and map a way forward for the task: "${task.title}". Context: ${task.description}. What is your technical execution plan?`, `Agent ${agent?.name} is leading the initial technical meeting.`);
          
          setState(prev => ({
            ...prev,
-           tasks: prev.tasks.map(t => t.id === task.id ? { ...t, plan, status: 'Awaiting CEO Approval' } : t),
            chatHistory: [...prev.chatHistory, {
              id: generateId(),
              timestamp: prev.time,
              senderId: agent?.id || 'system',
              senderName: agent?.name || 'Agent',
              senderRole: agent?.role || 'Developer',
-             content: `[PLANNING] Meeting concluded for "${task.title}". Plan: ${plan}`,
+             content: `[PLANNING PROPOSAL] Roadmap for "${task.title}": ${proposedPlan}`,
              type: 'Meeting'
            }]
          }));
-         addAlert(`Planning: CEO approval required for the "${task.title}" roadmap.`, 'info');
+
+         const refinedPlan = await callLlama(`Technical proposal for "${task.title}": ${proposedPlan}. As CEO Ivy, refine this into a final directive for the team.`, "You are CEO Ivy. Provide a high-level strategic directive based on the tech plan.");
+
+         setState(prev => ({
+           ...prev,
+           tasks: prev.tasks.map(t => t.id === task.id ? { ...t, plan: refinedPlan, status: 'Awaiting CEO Approval' } : t),
+           chatHistory: [...prev.chatHistory, {
+             id: generateId(),
+             timestamp: prev.time,
+             senderId: ceo?.id || 'ceo',
+             senderName: ceo?.name || 'CEO Ivy',
+             senderRole: 'CEO',
+             content: `[CEO DIRECTIVE] Ivy's directive for "${task.title}": ${refinedPlan}`,
+             type: 'Meeting'
+           }]
+         }));
+         return;
       }
 
       // --- Phase 3: CEO Approval ---
@@ -163,7 +141,7 @@ export const useSimulation = () => {
              type: 'Meeting'
            }]
         }));
-        addAlert(`Approval: CEO has approved the plan for "${task.title}". Moving to CFO review.`, 'success');
+        return;
       }
 
       // --- Phase 4: CFO Approval ---
@@ -185,14 +163,13 @@ export const useSimulation = () => {
                type: 'Meeting'
              }]
           }));
-          addAlert(`Budget: CFO authorized funding for "${task.title}". Execution starting.`, 'success');
         } else {
-          addAlert(`Budget: Insufficient funds for "${task.title}". Task blocked.`, 'error');
            setState(prev => ({
             ...prev,
             tasks: prev.tasks.map(t => t.id === task.id ? { ...t, status: 'Blocked' } : t)
           }));
         }
+        return;
       }
 
       // --- Phase 5: Execution (Qwen) ---
@@ -215,25 +192,31 @@ export const useSimulation = () => {
             } : t),
             budget: { ...prev.budget, spent: prev.budget.spent + (agent.costPerHour * task.complexity) }
           }));
-          
-          addAlert(`Review Required: "${task.title}" has been submitted for final review.`, 'info');
         }
+        return;
       }
     }
-  }, [addAlert]);
+  }, []);
+
+  // Automatic Workflow Trigger
+  useEffect(() => {
+    if (!state.isRunning) return;
+    const interval = setInterval(() => {
+      processWorkflow();
+    }, 4000); // 4 seconds for a more stable pace
+    return () => clearInterval(interval);
+  }, [processWorkflow, state.isRunning]);
 
   const acceptTask = useCallback((taskId: string) => {
      setState(prev => {
         const task = prev.tasks.find(t => t.id === taskId);
         if (!task) return prev;
         
-        const agent = prev.agents.find(a => a.id === task.assignedTo);
-        
         return {
           ...prev,
           tasks: prev.tasks.map(t => t.id === taskId ? { ...t, status: 'Completed', reviewStatus: 'Accepted' } : t),
           agents: prev.agents.map(a => a.id === task.assignedTo ? { ...a, status: 'Idle', tasksCompleted: a.tasksCompleted + 1 } : a),
-          alerts: [{ id: generateId(), message: `Task "${task.title}" accepted!`, type: 'success', timestamp: prev.time }, ...prev.alerts]
+          alerts: [{ id: generateId(), message: `Task "${task.title}" finalized.`, type: 'success', timestamp: prev.time }, ...prev.alerts]
         };
      });
   }, []);
@@ -254,13 +237,11 @@ export const useSimulation = () => {
           progress: 0 
         } : t),
         agents: prev.agents.map(a => a.id === task.assignedTo ? { ...a, status: 'Working' } : a),
-        alerts: [{ id: generateId(), message: `Task "${task.title}" declined. Agents are re-convening for a new plan.`, type: 'warning', timestamp: prev.time }, ...prev.alerts]
       };
     });
   }, []);
 
   const sendMessage = useCallback(async (content: string) => {
-    // 1. Add User message
     setState(prev => {
       const newMsg: ChatMessage = {
         id: generateId(),
@@ -273,55 +254,53 @@ export const useSimulation = () => {
       return { ...prev, chatHistory: [...prev.chatHistory, newMsg] };
     });
 
-    // 2. Call Llama for Reasoning
     const ceo = stateRef.current.agents.find(a => a.role === 'CEO');
     const recentHistory = stateRef.current.chatHistory.slice(-5).map(m => `${m.senderName}: ${m.content}`).join('\n');
     
-    const reasoning = await callLlama(content, `Workflow Context: We are moving to a direct execution model.\nHistory:\n${recentHistory}`);
+    const reasoning = await callLlama(content, `You are CEO Ivy. Your role is to understand the owner's request and DELEGATE tasks to the team. 
+    History:\n${recentHistory}`);
     
     setState(prev => {
       const ceoReply: ChatMessage = {
         id: generateId(),
         timestamp: prev.time,
         senderId: ceo?.id || 'ceo',
-        senderName: ceo?.name || 'CEO',
+        senderName: ceo?.name || 'CEO Ivy',
         senderRole: 'CEO',
-        content: reasoning
+        content: reasoning,
+        type: 'Meeting' // Delegations appear in Boardroom
       };
 
       let extraTasks: Task[] = [];
-      let extraAgents: Agent[] = [];
       const lowerReasoning = reasoning.toLowerCase();
 
-      // Predictive hiring/tasking based on reasoning
-      if (lowerReasoning.includes('hire') || lowerReasoning.includes('recruiting')) {
-         const roles: AgentRole[] = ['Developer', 'Designer', 'QA', 'Researcher'];
-         const role = roles.find(r => lowerReasoning.includes(r.toLowerCase()));
-         if (role) extraAgents.push(createAgent(role, 5));
-      }
-      
-      if (lowerReasoning.includes('task') || lowerReasoning.includes('create') || lowerReasoning.includes('add')) {
-          extraTasks.push(createTask(prev.time));
+      if (lowerReasoning.includes('task') || lowerReasoning.includes('delegating') || lowerReasoning.includes('execute') || lowerReasoning.includes('build')) {
+          const newTask: Task = {
+            id: generateId(),
+            title: content.length < 50 ? content : content.slice(0, 30) + "...",
+            description: reasoning,
+            complexity: 5,
+            status: 'Pending',
+            assignedTo: null,
+            progress: 0,
+            createdAt: prev.time,
+            requiredRole: lowerReasoning.includes('designer') ? 'Designer' : 
+                          lowerReasoning.includes('research') ? 'Researcher' : 'Developer'
+          };
+          extraTasks.push(newTask);
       }
 
       return {
         ...prev,
-        agents: [...prev.agents, ...extraAgents],
         tasks: [...prev.tasks, ...extraTasks],
         chatHistory: [...prev.chatHistory, ceoReply]
       };
     });
-
-    // 3. Automatically trigger workflow processing after reasoning
-    await processWorkflow();
-  }, [processWorkflow]);
-
-  // No more interval-based simulation logic. 
-  // Everything is driven by processWorkflow and sendMessage.
+  }, []);
 
   return {
     state,
-    toggleSimulation,
+    toggleSimulation: () => {}, // No-op in production
     addAlert,
     sendMessage,
     acceptTask,

@@ -30,17 +30,16 @@ export const AppLayout: React.FC = () => {
             <p className="text-[10px] text-regal-gold font-bold mt-0.5 uppercase tracking-[0.2em]">Regal Edition</p>
           </div>
         </div>
-        
+
         <nav className="flex-1 p-4 space-y-1">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative ${
-                  isActive
-                    ? 'bg-zinc-100 text-zinc-900'
-                    : 'text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900'
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative ${isActive
+                  ? 'bg-zinc-100 text-zinc-900'
+                  : 'text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900'
                 }`
               }
             >
@@ -55,7 +54,7 @@ export const AppLayout: React.FC = () => {
 
         <div className="p-4 border-t border-zinc-100">
           <div className="text-xs text-zinc-400 font-medium text-center">
-            Owner: maplininc@gmail.com
+            Owner: Ras Ali
           </div>
         </div>
       </aside>
@@ -70,21 +69,27 @@ export const AppLayout: React.FC = () => {
             </div>
             <h1 className="text-base font-bold tracking-tight text-zinc-900">AI Workflow</h1>
           </div>
-          
+
           <div className="hidden md:block">
             {/* Breadcrumbs or Page Title could go here */}
           </div>
 
           <div className="flex items-center gap-3 ml-auto">
-            <div className="text-xs font-mono font-bold bg-white px-4 py-2.5 rounded-2xl border border-zinc-200 text-zinc-600 flex items-center gap-2 shadow-sm">
-              <div className={`w-2.5 h-2.5 rounded-full bg-regal-green animate-pulse shadow-[0_0_8px_rgba(5,150,105,0.6)]`} />
-              Step {state.time}
+            <div className="text-xs font-bold bg-white px-4 py-2.5 rounded-full border border-zinc-200 text-zinc-600 flex items-center gap-2 shadow-sm">
+              <div className="w-2.5 h-2.5 rounded-full bg-regal-green animate-pulse" />
+              Engine Status: <span className="text-regal-green">Operational</span>
             </div>
-            <Button onClick={() => sendMessage("Proceed with the next steps of the project.")} variant="default" className="h-11 px-8 rounded-2xl bg-regal-red hover:bg-red-700 shadow-lg shadow-red-200 transition-all active:scale-95 text-sm font-bold">
-              <Play className="w-4 h-4 mr-2" /> Next Step
-            </Button>
-            <Button variant="outline" size="icon" onClick={() => window.location.reload()} className="shadow-sm">
-              <RotateCcw className="w-4 h-4" />
+            <Button 
+              variant="outline" 
+              className="rounded-full text-zinc-500 hover:text-regal-red border-zinc-200 transition-colors"
+              onClick={() => {
+                if (confirm('Are you sure you want to reset the entire workflow engine? All persistent state will be cleared.')) {
+                  localStorage.clear();
+                  window.location.reload();
+                }
+              }}
+            >
+              <RotateCcw className="w-4 h-4 mr-2" /> Reset Engine
             </Button>
           </div>
         </header>
@@ -96,7 +101,7 @@ export const AppLayout: React.FC = () => {
           </div>
         </main>
       </div>
-      
+
       {/* Mobile Nav (Bottom) */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-zinc-200 flex justify-around p-2 z-50">
         {navItems.map((item) => (
@@ -104,10 +109,9 @@ export const AppLayout: React.FC = () => {
             key={item.to}
             to={item.to}
             className={({ isActive }) =>
-              `flex flex-col items-center gap-1 p-2 rounded-lg text-[10px] font-medium transition-colors ${
-                isActive
-                  ? 'text-zinc-900'
-                  : 'text-zinc-500 hover:text-zinc-900'
+              `flex flex-col items-center gap-1 p-2 rounded-lg text-[10px] font-medium transition-colors ${isActive
+                ? 'text-zinc-900'
+                : 'text-zinc-500 hover:text-zinc-900'
               }`
             }
           >

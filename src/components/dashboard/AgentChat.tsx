@@ -63,7 +63,7 @@ export const AgentChat: React.FC<{ messages: ChatMessage[], onSendMessage: (msg:
                           {msg.type === 'Meeting' && (
                             <span className="text-[9px] font-bold text-regal-gold block mb-1 uppercase tracking-tighter italic">Strategic Alignment</span>
                           )}
-                          {msg.content.split(/(@\w+(?: \(\w+\))?)/g).map((part, i) => 
+                          {(msg.content || '').split(/(@\w+(?: \(\w+\))?)/g).map((part, i) => 
                           part.startsWith('@') ? (
                             <span key={i} className={`font-bold ${isUser ? 'text-white underline underline-offset-2' : 'text-regal-red'}`}>{part}</span>
                           ) : (

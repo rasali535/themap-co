@@ -52,7 +52,8 @@ app.post('/llama', async (req, res) => {
     console.log(`Ollama response: ${response.status}`);
     
     if (!response.ok) {
-      return res.status(response.status).json({ error: `Ollama error: ${response.statusText}` });
+      const errorText = await response.text();
+      return res.status(response.status).json({ error: `Ollama error (${response.status}): ${errorText}` });
     }
     
     const data = await response.json();
@@ -90,7 +91,8 @@ app.post('/qwen', async (req, res) => {
     console.log(`Ollama response: ${response.status}`);
     
     if (!response.ok) {
-      return res.status(response.status).json({ error: `Ollama error: ${response.statusText}` });
+      const errorText = await response.text();
+      return res.status(response.status).json({ error: `Ollama error (${response.status}): ${errorText}` });
     }
     
     const data = await response.json();
