@@ -1,6 +1,14 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { setGlobalDispatcher, Agent } from 'undici';
+
+// Increase timeouts for global fetch to handle slow LLM responses
+setGlobalDispatcher(new Agent({
+  headersTimeout: 600000, // 10 minutes
+  bodyTimeout: 600000,    // 10 minutes
+  connectTimeout: 60000   // 1 minute
+}));
 
 dotenv.config();
 
@@ -59,8 +67,13 @@ app.post('/llama', async (req, res) => {
     const data = await response.json();
     res.json({ content: data.response });
   } catch (error) {
-    console.error('Llama error:', error.message);
-    res.status(500).json({ error: error.message });
+    if (error.name === 'AbortError') {
+      console.error('Llama error: Request timed out');
+      res.status(504).json({ error: 'Request timed out' });
+    } else {
+      console.error('Llama error:', error.message);
+      res.status(500).json({ error: error.message });
+    }
   }
 });
 
@@ -98,14 +111,19 @@ app.post('/qwen', async (req, res) => {
     const data = await response.json();
     res.json({ content: data.response });
   } catch (error) {
-    console.error('Qwen error:', error.message);
-    res.status(500).json({ error: error.message });
+    if (error.name === 'AbortError') {
+      console.error('Qwen error: Request timed out');
+      res.status(504).json({ error: 'Request timed out' });
+    } else {
+      console.error('Qwen error:', error.message);
+      res.status(500).json({ error: error.message });
+    }
   }
 });
 
 app.listen(PORT, () => {
   console.log(`Model Proxy running on http://localhost:${PORT}`);
-  console.log(`- Llama Reasoning at /llama`);
-  console.log(`- Qwen Coding at /qwen`);
+  console.log(`- Llama Reasoning at /llama (Model: ${LLAMA_MODEL})`);
+  console.log(`- Qwen Coding at /qwen (Model: ${QWEN_MODEL})`);
   console.log(`- Ollama URL: ${OLLAMA_URL}`);
 });
