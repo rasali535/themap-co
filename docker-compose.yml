@@ -2,13 +2,14 @@ version: '3.8'
 
 services:
   backend:
+    image: rasali535/rasalilabs-backend
     build:
       context: .
       dockerfile: Dockerfile.backend
     ports:
-      - "3004:3004"
+      - "9999:9999"
     environment:
-      - PORT=3004
+      - PORT=9999
       - NODE_ENV=development
       - OLLAMA_API_URL=http://host.docker.internal:11434/api/generate
     extra_hosts:
@@ -16,50 +17,61 @@ services:
     volumes:
       - ./server.js:/app/server.js:ro
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3004', (r) => {if (r.statusCode !== 404) throw new Error(r.statusCode)})"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+    networks:
+      - themap-network
 
   frontend:
+    image: rasali535/rasalilabs-frontend
     build:
       context: .
       dockerfile: Dockerfile.frontend
       args:
-        - VITE_LLAMA_SERVER_URL=http://localhost:3004/llama
-        - VITE_QWEN_API_URL=http://localhost:3004/qwen
+        - VITE_LLAMA_SERVER_URL=http://backend:9999/llama
+        - VITE_QWEN_API_URL=http://backend:9999/qwen
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=development
     depends_on:
-      backend:
-        condition: service_healthy
-    volumes:
-      - ./src:/app/src:ro
-      - ./index.html:/app/index.html:ro
-      - ./vite.config.ts:/app/vite.config.ts:ro
+      - backend
     restart: unless-stopped
+    networks:
+      - themap-network
+
+  ollama:
+    image: ollama/ollama:0.3.0
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    networks:
+      - themap-network
 
   develop:
     build:
       context: .
-      dockerfile: Dockerfile.frontend
+      dockerfile: Dockerfile.dev
     ports:
       - "5173:5173"
     environment:
       - NODE_ENV=development
-      - VITE_LLAMA_SERVER_URL=http://localhost:3004/llama
-      - VITE_QWEN_API_URL=http://localhost:3004/qwen
+      - VITE_LLAMA_SERVER_URL=http://backend:9999/llama
+      - VITE_QWEN_API_URL=http://backend:9999/qwen
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend
     volumes:
       - ./src:/app/src
       - ./index.html:/app/index.html
-      - ./vite.config.ts:/app/vite.config.ts
       - ./package.json:/app/package.json
     command: npm run dev
     restart: unless-stopped
+    networks:
+      - themap-network
+
+volumes:
+  ollama_data:
+
+networks:
+  themap-network:
+    driver: bridge
