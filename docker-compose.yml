@@ -47,6 +47,7 @@ services:
     restart: unless-stopped
     networks:
       - themap-network
+    entrypoint: /bin/sh -c "ollama serve & sleep 3 && ollama pull llama3 && ollama pull qwen2 && wait"
 
   develop:
     build:
