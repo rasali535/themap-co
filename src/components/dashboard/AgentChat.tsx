@@ -100,18 +100,21 @@ export const AgentChat: React.FC<{
           )}
         </div>
         <div className="p-3 border-t border-zinc-100 bg-zinc-50/50">
-          <form onSubmit={handleSend} className="flex gap-2">
+          <form onSubmit={handleSend} className="flex gap-2 mb-2">
             <input
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Type your message..."
+              placeholder="Give Ivy a directive..."
               className="flex-1 rounded-2xl border border-zinc-200 px-5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-regal-red/20 focus:border-regal-red bg-white shadow-sm transition-all"
             />
             <Button type="submit" size="icon" disabled={!inputValue.trim()} className="rounded-2xl shrink-0 bg-regal-red hover:bg-red-700 shadow-md">
               <Send className="w-4 h-4" />
             </Button>
           </form>
+          <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest text-center">
+            Ivy will wait for full info before delegating with <code>[DELEGATE: Role, Title, Description]</code>
+          </p>
         </div>
       </CardContent>
     </Card>

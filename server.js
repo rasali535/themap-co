@@ -21,6 +21,13 @@ const QWEN_MODEL = process.env.VITE_QWEN_MODEL || 'qwen2.5-coder';
 app.use(cors());
 app.use(express.json());
 
+// Serve results directory statically
+const resultsPath = path.join(__dirname, 'results');
+if (!fs.existsSync(resultsPath)) {
+  fs.mkdirSync(resultsPath);
+}
+app.use('/results', express.static(resultsPath));
+
 
 app.get('/debug', async (req, res) => {
   try {
@@ -187,12 +194,13 @@ app.post('/qwen', async (req, res) => {
 
 app.post('/save-output', async (req, res) => {
   try {
-    const { filename, content } = req.body;
+    const { filename, content, format = 'txt' } = req.body;
     if (!filename || !content) {
       return res.status(400).json({ error: 'filename and content are required' });
     }
 
-    const safeFilename = filename.replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.txt';
+    const extension = format.toLowerCase();
+    const safeFilename = filename.replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.' + extension;
     const filePath = path.join(__dirname, 'results', safeFilename);
 
     // Ensure results directory exists
@@ -203,14 +211,18 @@ app.post('/save-output', async (req, res) => {
 
     fs.writeFileSync(filePath, content);
     console.log(`Saved output to ${filePath}`);
-    res.json({ status: 'success', path: filePath });
+    res.json({ 
+      status: 'success', 
+      path: filePath,
+      url: `http://localhost:${PORT}/results/${safeFilename}`
+    });
   } catch (error) {
     console.error('Save Output Error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
 
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Model Proxy running on http://localhost:${PORT}`);
   console.log(`- Llama Reasoning at /llama (Model: ${LLAMA_MODEL})`);
   console.log(`- Qwen Coding at /qwen (Model: ${QWEN_MODEL})`);

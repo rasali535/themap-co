@@ -9,11 +9,17 @@ export const TaskShowcase: React.FC = () => {
   
   const completedTasks = state.tasks.filter(t => t.status === 'Completed' || t.output);
   
-  const handleDownload = (title: string, content: string) => {
+  const handleDownload = (title: string, content: string, format: string = 'txt') => {
     const element = document.createElement("a");
-    const file = new Blob([content], {type: 'text/plain'});
+    const mimeMap: Record<string, string> = {
+      'html': 'text/html',
+      'md': 'text/markdown',
+      'txt': 'text/plain',
+      'json': 'application/json'
+    };
+    const file = new Blob([content], {type: mimeMap[format] || 'text/plain'});
     element.href = URL.createObjectURL(file);
-    element.download = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.txt`;
+    element.download = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.${format}`;
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
@@ -87,13 +93,26 @@ export const TaskShowcase: React.FC = () => {
                             <span className="text-[10px] font-bold uppercase tracking-widest">Final Task Deliverable</span>
                           </div>
                           {task.output && (
-                            <button 
-                              onClick={() => handleDownload(task.title, task.output!)}
-                              className="flex items-center gap-1.5 px-3 py-1 bg-zinc-900 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-zinc-800 transition-colors shadow-sm"
-                            >
-                              <Download className="w-3 h-3" />
-                              Download
-                            </button>
+                            <div className="flex gap-2">
+                              {task.outputFormat === 'html' && task.outputUrl && (
+                                <a 
+                                  href={task.outputUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-1.5 px-3 py-1 bg-indigo-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-indigo-700 transition-colors shadow-sm"
+                                >
+                                  <Eye className="w-3 h-3" />
+                                  View Live
+                                </a>
+                              )}
+                              <button 
+                                onClick={() => handleDownload(task.title, task.output!, task.outputFormat || 'txt')}
+                                className="flex items-center gap-1.5 px-3 py-1 bg-zinc-900 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-zinc-800 transition-colors shadow-sm"
+                              >
+                                <Download className="w-3 h-3" />
+                                Download {task.outputFormat?.toUpperCase() || 'TXT'}
+                              </button>
+                            </div>
                           )}
                         </div>
                         <div className="bg-white rounded-2xl p-6 border border-zinc-200 text-sm text-zinc-900 font-medium leading-relaxed shadow-sm min-h-[120px]">

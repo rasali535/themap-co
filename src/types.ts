@@ -27,6 +27,8 @@ export interface Task {
   completedAt?: number;
   requiredRole: AgentRole;
   output?: string;
+  outputUrl?: string;
+  outputFormat?: string;
   plan?: string;
   reviewRecommendation?: string;
   reviewStatus?: 'Pending' | 'Accepted' | 'Declined';

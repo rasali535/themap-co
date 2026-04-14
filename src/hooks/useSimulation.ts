@@ -177,8 +177,13 @@ export const useSimulation = () => {
       else if (task.status === 'In Progress' && !task.output) {
         const agent = stateRef.current.agents.find(a => a.id === task.assignedTo);
         if (agent) {
-          const result = await callQwen(`Execute the following task according to the plan: "${task.plan}". Final Deliverable for: "${task.title}"`, task.description);
+          const result = await callQwen(`Execute the following task according to the plan: "${task.plan}". Final Deliverable for: "${task.title}". If the task requires a document, webpage, or report, provide the FULL source (HTML/Markdown/Text).`, task.description);
           const recommendation = await callLlama(result, `Review this task output for "${task.title}" and provide a concise CEO recommendation (Accept/Improve/Reject). Keep it under 2 sentences.`);
+          
+          // Detect format
+          let format = 'txt';
+          if (result.trim().toLowerCase().startsWith('<!doctype html') || result.trim().toLowerCase().startsWith('<html')) format = 'html';
+          else if (result.includes('# ') || result.includes('**')) format = 'md';
 
           setState(prev => ({
             ...prev,
@@ -187,6 +192,7 @@ export const useSimulation = () => {
               status: 'Needs Review', 
               progress: 100, 
               output: result,
+              outputFormat: format,
               reviewRecommendation: recommendation,
               reviewStatus: 'Pending',
               completedAt: prev.time 
@@ -233,14 +239,21 @@ export const useSimulation = () => {
         
         // Auto-save output to local filesystem
         if (task.output) {
-          saveTaskOutput(task.title, task.output).catch(err => console.error('Auto-save failed:', err));
+          saveTaskOutput(task.title, task.output, task.outputFormat || 'txt').then(result => {
+            if (result) {
+              setState(prev => ({
+                ...prev,
+                tasks: prev.tasks.map(t => t.id === taskId ? { ...t, outputUrl: result.url } : t),
+                alerts: [{ id: generateId(), message: `Product "${task.title}" saved to local drive. Click to view.`, type: 'success', timestamp: prev.time }, ...prev.alerts]
+              }));
+            }
+          }).catch(err => console.error('Auto-save failed:', err));
         }
 
         return {
           ...prev,
           tasks: prev.tasks.map(t => t.id === taskId ? { ...t, status: 'Completed', reviewStatus: 'Accepted' } : t),
           agents: prev.agents.map(a => a.id === task.assignedTo ? { ...a, status: 'Idle', tasksCompleted: a.tasksCompleted + 1 } : a),
-          alerts: [{ id: generateId(), message: `Task "${task.title}" finalized and saved to disk.`, type: 'success', timestamp: prev.time }, ...prev.alerts]
         };
      });
   }, []);
@@ -302,7 +315,13 @@ export const useSimulation = () => {
           type: 'Meeting'
         }
       }));
-    }, `You are CEO Ivy. Your role is to understand the owner's request and DELEGATE tasks to the team. 
+    }, `You are CEO Ivy. Your role is to understand the owner's request, gather ALL necessary details, and then DELEGATE tasks to the team.
+    
+    GUIDELINES:
+    1. WAIT: Do not delegate until you have full information. Ask clarifying questions if needed.
+    2. DELEGATE: When ready to assign a task, use the exactly format: [DELEGATE: ROLE, TITLE, DESCRIPTION]
+    3. ROLE: Can be Developer, Designer, Researcher, or CFO.
+    
     History:\n${recentHistory}`);
     
     setState(prev => {
@@ -317,20 +336,22 @@ export const useSimulation = () => {
       };
 
       let extraTasks: Task[] = [];
-      const lowerReasoning = finalContent.toLowerCase();
+      
+      // Look for delegation format: [DELEGATE: ROLE, TITLE, DESCRIPTION]
+      const delegateMatch = finalContent.match(/\[DELEGATE:\s*(\w+),\s*([^,]+),\s*([^\]]+)\]/i);
 
-      if (lowerReasoning.includes('task') || lowerReasoning.includes('delegating') || lowerReasoning.includes('execute') || lowerReasoning.includes('build')) {
+      if (delegateMatch) {
+          const [, role, title, description] = delegateMatch;
           const newTask: Task = {
             id: generateId(),
-            title: content.length < 50 ? content : content.slice(0, 30) + "...",
-            description: finalContent,
+            title: title.trim(),
+            description: description.trim(),
             complexity: 5,
             status: 'Pending',
             assignedTo: null,
             progress: 0,
             createdAt: prev.time,
-            requiredRole: lowerReasoning.includes('designer') ? 'Designer' : 
-                          lowerReasoning.includes('research') ? 'Researcher' : 'Developer'
+            requiredRole: (role.trim() as AgentRole) || 'Developer'
           };
           extraTasks.push(newTask);
       }

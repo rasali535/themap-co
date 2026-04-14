@@ -155,16 +155,17 @@ export const callQwen = async (prompt: string, taskDescription: string = ''): Pr
   }
 };
 
-export const saveTaskOutput = async (filename: string, content: string): Promise<boolean> => {
+export const saveTaskOutput = async (filename: string, content: string, format: string = 'txt'): Promise<{ url: string; path: string } | null> => {
   try {
     const response = await fetch(SAVE_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ filename, content })
+      body: JSON.stringify({ filename, content, format })
     });
-    return response.ok;
+    if (!response.ok) return null;
+    return await response.json();
   } catch (error) {
     console.error('Save Error:', error);
-    return false;
+    return null;
   }
 };
