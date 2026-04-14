@@ -2,7 +2,7 @@ import React from 'react';
 import { useSimulationContext } from '../../context/SimulationContext';
 import { Card, CardContent } from '../ui/Card';
 import { Button } from '../ui/Button';
-import { Check, X, ClipboardList, MessageSquare, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Check, X, ClipboardList, MessageSquare, AlertCircle, ShieldCheck, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const TaskReview: React.FC = () => {
@@ -51,13 +51,26 @@ export const TaskReview: React.FC = () => {
                             {task.plan}
                           </p>
                           
-                          <div className="flex items-center gap-2 text-zinc-400 mb-3 pt-5 border-t border-zinc-100">
-                            <MessageSquare className="w-4 h-4" />
-                            <span className="text-[10px] font-bold uppercase tracking-widest">Final Deliverable</span>
+                          <div className="flex items-center justify-between gap-2 text-zinc-400 mb-3 pt-5 border-t border-zinc-100">
+                            <div className="flex items-center gap-2">
+                              <MessageSquare className="w-4 h-4" />
+                              <span className="text-[10px] font-bold uppercase tracking-widest">Final Deliverable</span>
+                            </div>
+                            {task.outputFormat === 'html' && task.outputUrl && (
+                                <a 
+                                  href={task.outputUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-1.5 px-3 py-1 bg-indigo-600 text-white rounded-lg text-[9px] font-bold uppercase tracking-widest hover:bg-indigo-700 transition-colors shadow-sm"
+                                >
+                                  <Eye className="w-3 h-3" />
+                                  View Live Product
+                                </a>
+                            )}
                           </div>
-                          <p className="text-sm text-zinc-600 italic leading-relaxed">
-                            "{task.output}"
-                          </p>
+                          <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-100 text-xs text-zinc-600 italic leading-relaxed max-h-32 overflow-y-auto">
+                            {task.output}
+                          </div>
                         </div>
 
                         <div className="bg-gradient-to-br from-amber-50 to-amber-100/50 rounded-2xl p-5 border border-regal-gold/20 shadow-sm relative overflow-hidden group">

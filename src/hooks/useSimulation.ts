@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Agent, Task, Alert, Budget, SimulationState, AgentRole, TaskStatus, ChatMessage } from '../types';
-import { callLlama, callQwen, saveTaskOutput } from '../lib/llm';
+import { callLlama, callQwen, streamLlama, saveTaskOutput } from '../lib/llm';
 
 const STORAGE_KEY = 'themap_workflow_state';
 const INITIAL_BUDGET = 100000;
@@ -180,10 +180,18 @@ export const useSimulation = () => {
           const result = await callQwen(`Execute the following task according to the plan: "${task.plan}". Final Deliverable for: "${task.title}". If the task requires a document, webpage, or report, provide the FULL source (HTML/Markdown/Text).`, task.description);
           const recommendation = await callLlama(result, `Review this task output for "${task.title}" and provide a concise CEO recommendation (Accept/Improve/Reject). Keep it under 2 sentences.`);
           
-          // Detect format
+          // Detect and extract format
           let format = 'txt';
-          if (result.trim().toLowerCase().startsWith('<!doctype html') || result.trim().toLowerCase().startsWith('<html')) format = 'html';
-          else if (result.includes('# ') || result.includes('**')) format = 'md';
+          let extractedResult = result;
+          
+          const htmlMatch = result.match(/```html\n?([\s\S]*?)```/i) || (result.trim().toLowerCase().startsWith('<!doctype html') || result.trim().toLowerCase().startsWith('<html') ? [null, result] : null);
+          if (htmlMatch) {
+            format = 'html';
+            extractedResult = htmlMatch[1] || result;
+          } else if (result.includes('```md') || result.includes('```markdown') || result.includes('# ') || result.includes('**')) {
+            format = 'md';
+            extractedResult = result.replace(/```(md|markdown)\n?([\s\S]*?)```/gi, '$2');
+          }
 
           setState(prev => ({
             ...prev,
@@ -191,7 +199,7 @@ export const useSimulation = () => {
               ...t, 
               status: 'Needs Review', 
               progress: 100, 
-              output: result,
+              output: extractedResult,
               outputFormat: format,
               reviewRecommendation: recommendation,
               reviewStatus: 'Pending',
@@ -300,7 +308,6 @@ export const useSimulation = () => {
     const streamingId = generateId();
     let finalContent = '';
 
-    const { streamLlama } = await import('../lib/llm');
 
     await streamLlama(content, (updatedContent) => {
       finalContent = updatedContent;
