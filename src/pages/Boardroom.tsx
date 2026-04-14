@@ -25,7 +25,7 @@ export const Boardroom: React.FC = () => {
             <ShieldAlert className="w-6 h-6 text-regal-gold" />
             Executive Boardroom
           </h2>
-          <p className="text-sm text-zinc-500 mt-1">Strategic meetings, planning discussions, and official approvals.</p>
+          <p className="text-sm text-zinc-500 mt-1">High-speed strategic planning and rapid task execution hub.</p>
         </div>
       </div>
 

@@ -91,7 +91,7 @@ export const useSimulation = () => {
          const agent = stateRef.current.agents.find(a => a.id === task.assignedTo);
          const ceo = stateRef.current.agents.find(a => a.role === 'CEO');
          
-         const proposedPlan = await callLlama(`Discuss and map a way forward for the task: "${task.title}". Context: ${task.description}. What is your technical execution plan?`, `Agent ${agent?.name} is leading the initial technical meeting.`);
+         const proposedPlan = await callLlama(`Rapidly map a technically efficient way forward for: "${task.title}". Context: ${task.description}. Be concise and technical.`, `Agent ${agent?.name} is pitching a high-speed execution plan.`);
          
          setState(prev => ({
            ...prev,
@@ -106,7 +106,7 @@ export const useSimulation = () => {
            }]
          }));
 
-         const refinedPlan = await callLlama(`Technical proposal for "${task.title}": ${proposedPlan}. As CEO Ivy, refine this into a final directive for the team.`, "You are CEO Ivy. Provide a high-level strategic directive based on the tech plan.");
+         const refinedPlan = await callLlama(`Technical proposal for "${task.title}": ${proposedPlan}. As CEO Ivy, synthesize this into a strategic mandate. Don't just repeat the plan—tell the team why this task is critical and exactly what victory looks like for Ras Ali Labs.`, "You are CEO Ivy. Be decisive, strategic, and focused on high-level goals.");
 
          setState(prev => ({
            ...prev,
@@ -127,7 +127,7 @@ export const useSimulation = () => {
       // --- Phase 3: CEO Approval ---
       else if (task.status === 'Awaiting CEO Approval') {
         const ceo = stateRef.current.agents.find(a => a.role === 'CEO');
-        const approvalComment = await callLlama(`Review this plan for "${task.title}": ${task.plan}. Approve it or suggest changes.`, "You are the CEO. Give a formal approval.");
+        const approvalComment = await callLlama(`Review this technical roadmap for "${task.title}": ${task.plan}. As CEO, give your final assessment. Is it ambitious enough? Does it align with our mission? Issue the final order to proceed or demand better.`, "You are the CEO. Be authoritative and inspiring.");
         
         setState(prev => ({
           ...prev,
@@ -224,11 +224,12 @@ export const useSimulation = () => {
         isProcessing.current = false;
         setState(prev => ({ ...prev, isThinking: false }));
         // Schedule next run only after the current one completes
-        timeoutId = setTimeout(runCycle, 4000);
+        // Schedule next run much faster for "quick time" execution
+        timeoutId = setTimeout(runCycle, 1500);
       }
     };
 
-    timeoutId = setTimeout(runCycle, 4000);
+    timeoutId = setTimeout(runCycle, 1500);
     return () => clearTimeout(timeoutId);
   }, [processWorkflow, state.isRunning]);
 
