@@ -4,7 +4,7 @@ import { TaskList } from '../components/dashboard/TaskList';
 import { motion } from 'framer-motion';
 
 export const Tasks: React.FC = () => {
-  const { state } = useSimulationContext();
+  const { state, acceptTask, declineTask } = useSimulationContext();
 
   return (
     <motion.div 
@@ -19,7 +19,12 @@ export const Tasks: React.FC = () => {
       </div>
 
       <div className="flex-1 min-h-0">
-        <TaskList tasks={state.tasks} agents={state.agents} />
+        <TaskList 
+          tasks={state.tasks} 
+          agents={state.agents} 
+          onAccept={acceptTask}
+          onDecline={declineTask}
+        />
       </div>
     </motion.div>
   );

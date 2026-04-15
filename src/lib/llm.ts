@@ -34,7 +34,7 @@ export const streamLlama = async (
   context: string = ''
 ): Promise<void> => {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes
+  const timeoutId = setTimeout(() => controller.abort(), 1800000); // 30 minutes
 
   try {
     const response = await fetch(LLAMA_URL, {
@@ -89,7 +89,8 @@ export const streamLlama = async (
 
 export const callLlama = async (prompt: string, context: string = ''): Promise<string> => {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes
+  // Extremely long timeout (1 hour) for low-RAM machines where models swap heavily
+  const timeoutId = setTimeout(() => controller.abort(), 3600000); 
 
   try {
     const response = await fetchWithRetry(LLAMA_URL, {
@@ -114,16 +115,23 @@ export const callLlama = async (prompt: string, context: string = ''): Promise<s
   } catch (error) {
     clearTimeout(timeoutId);
     console.error('Llama Error:', error);
+    
     if (error.name === 'AbortError') {
-      return 'Llama reasoning timed out (max 10 minutes). The model might be loading or the prompt is too long.';
+      return 'Llama reasoning timed out (max 1 hour). The system is under heavy load.';
     }
-    return 'Llama is currently unavailable for reasoning.';
+    
+    // Check for common connection errors on low RAM systems
+    if (error.message.includes('fetch failed') || error.message.includes('NetworkError')) {
+      return 'Error: Connection lost. The model is likely loading or the system is low on RAM. Retrying may work once the model is in memory.';
+    }
+    
+    return `Error: ${error.message}`;
   }
 };
 
 export const callQwen = async (prompt: string, taskDescription: string = ''): Promise<string> => {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes
+  const timeoutId = setTimeout(() => controller.abort(), 3600000); // 1 hour
 
   try {
     const response = await fetchWithRetry(QWEN_URL, {
@@ -148,10 +156,16 @@ export const callQwen = async (prompt: string, taskDescription: string = ''): Pr
   } catch (error) {
     clearTimeout(timeoutId);
     console.error('Qwen Error:', error);
+    
     if (error.name === 'AbortError') {
-      return 'Qwen coding timed out (max 10 minutes).';
+      return 'Qwen coding timed out (max 1 hour).';
     }
-    return 'Qwen is currently unavailable for coding.';
+    
+    if (error.message.includes('fetch failed') || error.message.includes('NetworkError')) {
+      return 'Error: Connection lost during coding. This often happens on low-memory systems. Please wait a moment and try again.';
+    }
+    
+    return `Error: ${error.message}`;
   }
 };
 

@@ -13,13 +13,47 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 9999;
-const OLLAMA_URL = process.env.OLLAMA_API_URL || 'http://localhost:11434/api/generate';
+const OLLAMA_URL = 'http://127.0.0.1:11434/api/generate';
 // Global fetch settings are handled per-request to ensure stability across different Node.js environments.
 const LLAMA_MODEL = process.env.VITE_LLAMA_MODEL || 'llama3.2';
 const QWEN_MODEL = process.env.VITE_QWEN_MODEL || 'qwen2.5-coder';
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({
+  verify: (req, res, buf) => {
+    req.rawBody = buf.toString();
+  }
+}));
+
+// Better logging and error handling
+app.use((req, res, next) => {
+  if (req.method === 'POST') {
+    console.log(`[${new Date().toISOString()}] Incoming POST ${req.url}`);
+  }
+  next();
+});
+
+// JSON error handler
+app.use((err, req, res, next) => {
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    console.error('JSON Parsing Error:', err.message);
+    console.error('Raw Body was:', req.rawBody);
+    return res.status(400).json({ error: 'Invalid JSON', detail: err.message, raw: req.rawBody });
+  }
+  next();
+});
+
+app.use((req, res, next) => {
+  if (req.method === 'POST') {
+    if (req.body && Object.keys(req.body).length > 0) {
+      console.log(` - Body:`, JSON.stringify(req.body).substring(0, 200));
+      console.log(` - Stream param:`, req.body.stream);
+    }
+  }
+  next();
+});
+
+
 
 // Serve results directory statically
 const resultsPath = path.join(__dirname, 'results');
@@ -74,7 +108,7 @@ app.post('/llama', async (req, res) => {
     console.log(`Ollama URL: ${OLLAMA_URL}`);
     
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes
+    const timeoutId = setTimeout(() => controller.abort(), 3600000); // 1 hour
     
     const response = await fetch(OLLAMA_URL, {
       method: 'POST',
@@ -138,7 +172,7 @@ app.post('/qwen', async (req, res) => {
     console.log(`Qwen request: ${prompt}`);
     
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes
+    const timeoutId = setTimeout(() => controller.abort(), 3600000); // 1 hour
     
     const response = await fetch(OLLAMA_URL, {
       method: 'POST',
@@ -186,8 +220,8 @@ app.post('/qwen', async (req, res) => {
       console.error('Qwen error: Request timed out');
       res.status(504).json({ error: 'Request timed out' });
     } else {
-      console.error('Qwen error:', error.message);
-      res.status(500).json({ error: error.message });
+      console.error('Qwen error details:', error);
+      res.status(500).json({ error: error.message, stack: error.stack });
     }
   }
 });

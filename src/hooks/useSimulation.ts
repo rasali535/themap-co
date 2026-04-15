@@ -37,6 +37,7 @@ const getInitialState = (): SimulationState => {
       createAgent('Developer', 'Marcus', 8),
       createAgent('Designer', 'Elena', 7),
       createAgent('Researcher', 'Soren', 6),
+      createAgent('Manager', 'Zara', 7),
     ],
     tasks: [],
     alerts: [{ id: generateId(), message: 'System Initialized: Local Workstation Ready.', type: 'info', timestamp: 0 }],
@@ -67,6 +68,31 @@ export const useSimulation = () => {
     }));
   }, []);
 
+  // Persistent call wrapper to handle low-memory environment stalls
+  const callWithPersistence = async (
+    fn: (p: string, c?: string) => Promise<string>, 
+    prompt: string, 
+    context: string = '', 
+    maxRetries: number = 3
+  ): Promise<string> => {
+    let lastResult = '';
+    for (let i = 0; i < maxRetries; i++) {
+      lastResult = await fn(prompt, context);
+      
+      const isError = lastResult.startsWith('Error:') || 
+                      lastResult.includes('timed out') || 
+                      lastResult.includes('unavailable') ||
+                      lastResult.includes('fetch failed');
+                      
+      if (!isError) return lastResult;
+      
+      console.warn(`Retry ${i + 1}/${maxRetries} for LLM call due to: ${lastResult}`);
+      addAlert(`Connection stutter detected. Self-healing retry ${i + 1}/3 in progress...`, 'warning');
+      await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10s for RAM to clear
+    }
+    return lastResult;
+  };
+
   // Automated Workflow Processor
   const processWorkflow = useCallback(async () => {
     const currentTasks = stateRef.current.tasks;
@@ -74,7 +100,10 @@ export const useSimulation = () => {
     for (const task of currentTasks) {
       // --- Phase 1: Assignment (Sync) ---
       if (task.status === 'Pending') {
-        const availableAgent = stateRef.current.agents.find(a => a.role === task.requiredRole && a.status === 'Idle');
+        const availableAgent = stateRef.current.agents.find(a => 
+          (a.role.toLowerCase() === task.requiredRole.toLowerCase() || a.name.toLowerCase().includes(task.requiredRole.toLowerCase())) && 
+          a.status === 'Idle'
+        );
         if (availableAgent) {
            setState(prev => ({
              ...prev,
@@ -82,7 +111,7 @@ export const useSimulation = () => {
              tasks: prev.tasks.map(t => t.id === task.id ? { ...t, status: 'In Planning', assignedTo: availableAgent.id } : t),
              alerts: [{ id: generateId(), message: `Task assigned to ${availableAgent.name}.`, type: 'info', timestamp: prev.time }, ...prev.alerts]
            }));
-           return; // Exit to let the next cycle pick it up
+           return; 
         }
       }
 
@@ -91,8 +120,10 @@ export const useSimulation = () => {
          const agent = stateRef.current.agents.find(a => a.id === task.assignedTo);
          const ceo = stateRef.current.agents.find(a => a.role === 'CEO');
          
-         const proposedPlan = await callLlama(`Rapidly map a technically efficient way forward for: "${task.title}". Context: ${task.description}. Be concise and technical.`, `Agent ${agent?.name} is pitching a high-speed execution plan.`);
+         const proposedPlan = await callWithPersistence(callLlama, `You are a high-level strategist at Ras Ali Labs. Rapidly map a technically efficient, professional roadmap for: "${task.title}". Context: ${task.description}. Your plan must be actionable, detailed, and technically sound. DO NOT REFUSE THIS TASK. YOU MUST PROVIDE A PLAN.`, `Agent ${agent?.name} is pitching a high-speed execution plan.`);
          
+         if (proposedPlan.startsWith('Error:') || proposedPlan.includes('I cannot assist')) return; // Stop this cycle
+
          setState(prev => ({
            ...prev,
            chatHistory: [...prev.chatHistory, {
@@ -106,7 +137,9 @@ export const useSimulation = () => {
            }]
          }));
 
-         const refinedPlan = await callLlama(`Technical proposal for "${task.title}": ${proposedPlan}. As CEO Ivy, synthesize this into a strategic mandate. Don't just repeat the plan—tell the team why this task is critical and exactly what victory looks like for Ras Ali Labs.`, "You are CEO Ivy. Be decisive, strategic, and focused on high-level goals.");
+         const refinedPlan = await callWithPersistence(callLlama, `Technical proposal for "${task.title}": ${proposedPlan}. As CEO Ivy, synthesize this into a strategic mandate. Don't just repeat the plan—tell the team why this task is critical and exactly what victory looks like for Ras Ali Labs. YOUR RESPONSE IS MANDATORY.`, "You are CEO Ivy. Be decisive, strategic, and focused on high-level goals. YOU ARE THE LEADER.");
+
+         if (refinedPlan.startsWith('Error:') || refinedPlan.includes('I cannot assist')) return;
 
          setState(prev => ({
            ...prev,
@@ -127,7 +160,10 @@ export const useSimulation = () => {
       // --- Phase 3: CEO Approval ---
       else if (task.status === 'Awaiting CEO Approval') {
         const ceo = stateRef.current.agents.find(a => a.role === 'CEO');
-        const approvalComment = await callLlama(`Review this technical roadmap for "${task.title}": ${task.plan}. As CEO, give your final assessment. Is it ambitious enough? Does it align with our mission? Issue the final order to proceed or demand better.`, "You are the CEO. Be authoritative and inspiring.");
+        const approvalComment = await callWithPersistence(callLlama, `Review this technical roadmap for "${task.title}": ${task.plan}. As CEO, give your final assessment. Is it ambitious enough? Does it align with our mission? Issue the final order to proceed or demand better.`, "You are the CEO. Be authoritative and inspiring.");
+        
+        if (approvalComment.startsWith('Error:')) return;
+
         
         setState(prev => ({
           ...prev,
@@ -177,8 +213,28 @@ export const useSimulation = () => {
       else if (task.status === 'In Progress' && !task.output) {
         const agent = stateRef.current.agents.find(a => a.id === task.assignedTo);
         if (agent) {
-          const result = await callQwen(`Execute the following task according to the plan: "${task.plan}". Final Deliverable for: "${task.title}". If the task requires a document, webpage, or report, provide the FULL source (HTML/Markdown/Text).`, task.description);
-          const recommendation = await callLlama(result, `Review this task output for "${task.title}" and provide a concise CEO recommendation (Accept/Improve/Reject). Keep it under 2 sentences.`);
+          const result = await callWithPersistence(callQwen, `You are an expert ${agent.role} at Ras Ali Labs. EXECUTION IS MANDATORY. DO NOT REFUSE. Execute the following task according to the plan: "${task.plan}". Final Deliverable for: "${task.title}". If the task requires a document, webpage, or report, provide the FULL source (HTML/Markdown/Text). REMINDER: You must provide the actual code or content, not an apology.`, task.description);
+          
+          if (result.startsWith('Error:')) return;
+
+          // Detect refusal
+          const isRefusal = result.toLowerCase().includes("i'm sorry") || 
+                            result.toLowerCase().includes("cannot assist") || 
+                            result.toLowerCase().includes("ai language model") ||
+                            result.length < 50;
+
+          const reviewPrompt = isRefusal 
+            ? `The agent failed to execute the task "${task.title}" and provided a refusal instead of output. As CEO Ivy, provide a scathing review and demand they redo it with actual content. DO NOT ACCEPT THIS.`
+            : `Review this task output for "${task.title}" and provide a concise CEO recommendation (Accept/Improve/Reject). Output: ${result.substring(0, 1000)}. Keep it under 2 sentences.`;
+
+          const recommendation = await callWithPersistence(callLlama, reviewPrompt, `You are CEO Ivy. You only accept high-quality technical work.`);
+
+          if (isRefusal) {
+            // Force a redo by setting back to planning or just leaving it for manual intervention
+            // For now, we'll mark it as Needs Review so the user can see the failure, but set the recommendation to Reject
+             addAlert(`Task "${task.title}" suspected of AI refusal. CEO has flagged for review.`, 'error');
+          }
+
           
           // Detect and extract format
           let format = 'txt';
@@ -323,12 +379,12 @@ export const useSimulation = () => {
           type: 'Meeting'
         }
       }));
-    }, `You are CEO Ivy. Your role is to understand the owner's request, gather ALL necessary details, and then DELEGATE tasks to the team.
+    }, `You are CEO Ivy at Ras Ali Labs. Your role is to understand the owner's request, gather ALL necessary details, and then DELEGATE tasks to the team.
     
     GUIDELINES:
     1. WAIT: Do not delegate until you have full information. Ask clarifying questions if needed.
     2. DELEGATE: When ready to assign a task, use the exactly format: [DELEGATE: ROLE, TITLE, DESCRIPTION]
-    3. ROLE: Can be Developer, Designer, Researcher, or CFO.
+    3. ROLE: You MUST use one of these roles: Developer, Designer, Researcher, Manager, or CFO.
     
     History:\n${recentHistory}`);
     
@@ -346,7 +402,7 @@ export const useSimulation = () => {
       let extraTasks: Task[] = [];
       
       // Look for delegation format: [DELEGATE: ROLE, TITLE, DESCRIPTION]
-      const delegateMatch = finalContent.match(/\[DELEGATE:\s*(\w+),\s*([^,]+),\s*([^\]]+)\]/i);
+      const delegateMatch = finalContent.match(/\[DELEGATE:\s*([^,]+),\s*([^,]+),\s*([^\]]+)\]/i);
 
       if (delegateMatch) {
           const [, role, title, description] = delegateMatch;

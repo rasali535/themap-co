@@ -13,6 +13,7 @@ import { Tasks } from './pages/Tasks';
 import { Chat } from './pages/Chat';
 import { Boardroom } from './pages/Boardroom';
 import { TaskShowcase } from './pages/TaskShowcase';
+import { Landing } from './pages/Landing';
 import { AnimatePresence } from 'framer-motion';
 
 export default function App() {
@@ -21,8 +22,8 @@ export default function App() {
       <BrowserRouter>
         <AnimatePresence mode="wait">
           <Routes>
+            <Route index element={<Landing />} />
             <Route path="/" element={<AppLayout />}>
-              <Route index element={<Dashboard />} />
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="boardroom" element={<Boardroom />} />
               <Route path="team" element={<Team />} />

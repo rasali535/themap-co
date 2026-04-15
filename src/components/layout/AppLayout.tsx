@@ -9,7 +9,7 @@ export const AppLayout: React.FC = () => {
   const { state, toggleSimulation, sendMessage } = useSimulationContext();
 
   const navItems = [
-    { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/boardroom', icon: MessageSquare, label: 'Boardroom' },
     { to: '/tasks', icon: ListTodo, label: 'Task List' },
     { to: '/showcase', icon: CheckCircle2, label: 'Task Showcase' },
