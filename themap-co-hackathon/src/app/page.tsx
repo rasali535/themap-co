@@ -336,9 +336,9 @@ export default function Home() {
               {currentArtifact.type === 'risk_table' && currentArtifact.riskData && (
                 <div className="flex-1 bg-slate-900 border border-white/10 rounded-xl p-4 flex flex-col gap-3">
                   {currentArtifact.riskData.map((item, i) => (
-                    <div key={i} className="bg-black/50 border border-white/5 rounded-lg p-3 flex justify-between items-center animate-in fade-in zoom-in-95 duration-300" style={{ animationDelay: \`\${i * 150}ms\` }}>
+                    <div key={i} className="bg-black/50 border border-white/5 rounded-lg p-3 flex justify-between items-center animate-in fade-in zoom-in-95 duration-300" style={{ animationDelay: `${i * 150}ms` }}>
                       <span className="text-slate-300 text-sm font-medium">{item.label}</span>
-                      <span className={\`px-2 py-1 rounded text-xs font-bold \${item.safe ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30 animate-pulse'}\`}>
+                      <span className={`px-2 py-1 rounded text-xs font-bold ${item.safe ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30 animate-pulse'}`}>
                         {item.value}
                       </span>
                     </div>
