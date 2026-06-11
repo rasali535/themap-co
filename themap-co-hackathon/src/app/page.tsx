@@ -1,10 +1,12 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
 type Artifact = {
-  type: 'json' | 'map' | 'code' | 'empty';
+  type: 'map' | 'risk_table' | 'code_diff' | 'empty';
   title: string;
-  content: string;
+  state?: 'scanning' | 'extracted' | 'validated' | 'production';
+  riskData?: { label: string; value: string; safe: boolean }[];
+  codeDiff?: { file: string; additions: string[]; deletions: string[] };
 };
 
 type FlowEvent = {
@@ -29,102 +31,114 @@ const AGENT_COLORS: Record<string, string> = {
   AuditCompliance: 'text-teal-400 bg-teal-400/10 border-teal-400/30',
 };
 
-const CODE_PATCH = `
-// metadata-parser.js
-export function parseTopology(metadata) {
-+  if (!metadata || !metadata.crs) {
-+    throw new Error("Missing CRS mapping");
-+  }
-   return alignVectors(metadata);
-}
-`;
-
-const JSON_EXTRACT = `
-{
-  "taskId": "task-gaborone-cbd",
-  "vectors": 42,
-  "crs": "EPSG:4326",
-  "confidence": 0.98,
-  "bounds": {
-    "north": -24.653,
-    "south": -24.661,
-    "east": 25.918,
-    "west": 25.905
-  }
-}
-`;
-
-const mockFlowData: Omit<FlowEvent, 'id'>[] = [
-  { agent: "Planner", action: "TASK_CREATED", detail: "Update Gaborone CBD Roads", status: "complete" },
+// We will build the mock flow dynamically based on user input
+const generateFlow = (userInput: string): Omit<FlowEvent, 'id'>[] => [
+  { agent: "Planner", action: "TASK_CREATED", detail: userInput, status: "complete" },
   { agent: "AuditCompliance", action: "AUDIT_LOGGED", detail: "Task instantiation recorded", status: "complete" },
   { agent: "Orchestrator", action: "TASK_ASSIGNED", detail: "Routed to @GeoIntelligenceAgent", status: "complete" },
-  { agent: "GeoIntelligence", action: "DELIBERATING", detail: "Analyzing satellite imagery & extracting road vectors...", status: "thinking", artifact: { type: 'map', title: 'Satellite Processing', content: 'scanning' } },
-  { agent: "GeoIntelligence", action: "GEO_FEATURE_EXTRACTED", detail: "42 road vectors found", status: "complete", artifact: { type: 'map', title: 'Extracted Topology', content: 'extracted' } },
+  { agent: "GeoIntelligence", action: "DELIBERATING", detail: "Analyzing satellite imagery & extracting road vectors...", status: "thinking", artifact: { type: 'map', title: 'Satellite Processing', state: 'scanning' } },
+  { agent: "GeoIntelligence", action: "GEO_FEATURE_EXTRACTED", detail: "42 road vectors found", status: "complete", artifact: { type: 'map', title: 'Extracted Topology', state: 'extracted' } },
   { agent: "Validation", action: "DELIBERATING", detail: "Cross-referencing topology with baseline...", status: "thinking" },
-  { agent: "Validation", action: "QA_RESULT", detail: "Failed: Missing critical metadata tags", status: "error", artifact: { type: 'json', title: 'Validation Error', content: '{ "error": "Missing CRS Mapping", "code": 501 }' } },
+  { agent: "Validation", action: "QA_RESULT", detail: "Failed: Missing critical metadata tags", status: "error", artifact: { type: 'risk_table', title: 'Validation Audit Report', riskData: [
+    { label: 'Topology Check', value: 'Passed', safe: true },
+    { label: 'CRS Mapping', value: 'Missing Data', safe: false },
+    { label: 'Vector Count', value: '42 Features', safe: true }
+  ]} },
   { agent: "Orchestrator", action: "WORKFLOW_ESCALATED", detail: "Re-routing task to @DeveloperAgent", status: "error" },
   { agent: "Developer", action: "DELIBERATING", detail: "Debugging metadata parsing logic...", status: "thinking" },
-  { agent: "Developer", action: "SYSTEM_NOTIFICATION", detail: "Patch deployed: metadata-parser.js", status: "complete", artifact: { type: 'code', title: 'metadata-parser.js (diff)', content: CODE_PATCH } },
+  { agent: "Developer", action: "SYSTEM_NOTIFICATION", detail: "Patch deployed: metadata-parser.js", status: "complete", artifact: { type: 'code_diff', title: 'Developer Code Patch', codeDiff: {
+    file: 'metadata-parser.js',
+    deletions: ['  return alignVectors(metadata);'],
+    additions: ['  if (!metadata || !metadata.crs) throw new Error("Missing CRS mapping");', '  return alignVectors(metadata);']
+  } } },
   { agent: "GeoIntelligence", action: "DELIBERATING", detail: "Re-extracting with patched parser...", status: "thinking" },
-  { agent: "GeoIntelligence", action: "GEO_FEATURE_EXTRACTED", detail: "42 vectors (metadata fully attached)", status: "complete", artifact: { type: 'map', title: 'Validated Vectors', content: 'validated' } },
+  { agent: "GeoIntelligence", action: "GEO_FEATURE_EXTRACTED", detail: "42 vectors (metadata fully attached)", status: "complete", artifact: { type: 'map', title: 'Validated Vectors', state: 'validated' } },
   { agent: "Validation", action: "DELIBERATING", detail: "Re-running topology validation...", status: "thinking" },
   { agent: "Validation", action: "QA_RESULT", detail: "Passed: 100% compliance", status: "complete" },
-  { agent: "Risk", action: "DELIBERATING", detail: "Reasoning over geospatial impact using Featherless AI...", status: "thinking", artifact: { type: 'json', title: 'Risk Agent Reasoning', content: '{\n  "chain_of_thought": "Checking vector proximity to sensitive infrastructure...",\n  "flags": []\n}'} },
-  { agent: "Risk", action: "RISK_ASSESSMENT", detail: "Confidence 0.98. Safe for production.", status: "complete", artifact: { type: 'json', title: 'Risk Final Output', content: JSON_EXTRACT } },
+  { agent: "Risk", action: "DELIBERATING", detail: "Reasoning over geospatial impact using Featherless AI...", status: "thinking" },
+  { agent: "Risk", action: "RISK_ASSESSMENT", detail: "Confidence 0.98. Safe for production.", status: "complete", artifact: { type: 'risk_table', title: 'Final Risk Assessment', riskData: [
+    { label: 'Security Impact', value: 'Low', safe: true },
+    { label: 'Regulatory Risk', value: 'Negligible', safe: true },
+    { label: 'Confidence Score', value: '98%', safe: true }
+  ]} },
   { agent: "Orchestrator", action: "APPROVAL_GRANTED", detail: "Map Update Approved", status: "complete" },
-  { agent: "Orchestrator", action: "MAP_UPDATE", detail: "PUBLISHED to Production", status: "complete", artifact: { type: 'map', title: 'Production Tile Update', content: 'production' } },
+  { agent: "Orchestrator", action: "MAP_UPDATE", detail: "PUBLISHED to Production", status: "complete", artifact: { type: 'map', title: 'Production Tile Update', state: 'production' } },
   { agent: "QaTest", action: "SYSTEM_NOTIFICATION", detail: "Regression checks passed", status: "complete" },
-  { agent: "Reporting", action: "REPORT_GENERATED", detail: "Gaborone CBD mapping workflow finalized.", status: "complete", artifact: { type: 'json', title: 'Audit Manifest', content: '{ "status": "published", "hash": "8f3a1...9b2" }' } },
+  { agent: "Reporting", action: "REPORT_GENERATED", detail: "Mapping workflow finalized successfully.", status: "complete" },
 ];
 
 export default function Home() {
   const [events, setEvents] = useState<FlowEvent[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [currentArtifact, setCurrentArtifact] = useState<Artifact>({ type: 'empty', title: 'Waiting for Agent Artifacts...', content: '' });
+  const [currentArtifact, setCurrentArtifact] = useState<Artifact>({ type: 'empty', title: 'Awaiting User Input...' });
+  const [inputValue, setInputValue] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const feedEndRef = useRef<HTMLDivElement>(null);
 
+  // Auto-scroll to bottom of feed
   useEffect(() => {
-    if (currentIndex < mockFlowData.length) {
-      const currentItem = mockFlowData[currentIndex];
+    feedEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [events]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputValue.trim() || isProcessing) return;
+    
+    setIsProcessing(true);
+    setEvents([]);
+    setCurrentArtifact({ type: 'empty', title: 'Waiting for Agent Artifacts...' });
+    
+    const flowData = generateFlow(inputValue);
+    setInputValue("");
+    
+    let stepIndex = 0;
+    
+    const processNextStep = () => {
+      if (stepIndex >= flowData.length) {
+        setIsProcessing(false);
+        return;
+      }
       
-      const delay = currentItem.status === 'thinking' ? 4000 : 2500;
+      const currentItem = flowData[stepIndex];
+      const delay = currentItem.status === 'thinking' ? 3500 : 2000;
 
-      const timer = setTimeout(() => {
-        if (currentItem.artifact) {
-          setCurrentArtifact(currentItem.artifact);
+      if (currentItem.artifact) {
+        setCurrentArtifact(currentItem.artifact);
+      }
+
+      setEvents(prev => {
+        const newEvents = [...prev];
+        if (
+          newEvents.length > 0 && 
+          newEvents[newEvents.length - 1].status === 'thinking' && 
+          newEvents[newEvents.length - 1].agent === currentItem.agent
+        ) {
+          newEvents.pop(); // Remove the "thinking" state
         }
+        return [...newEvents, { ...currentItem, id: stepIndex }];
+      });
+      
+      stepIndex++;
+      setTimeout(processNextStep, delay);
+    };
 
-        setEvents(prev => {
-          const newEvents = [...prev];
-          if (
-            newEvents.length > 0 && 
-            newEvents[newEvents.length - 1].status === 'thinking' && 
-            newEvents[newEvents.length - 1].agent === currentItem.agent
-          ) {
-            newEvents.pop();
-          }
-          return [...newEvents, { ...currentItem, id: currentIndex }];
-        });
-        setCurrentIndex(prev => prev + 1);
-      }, delay);
+    // Start the recursive flow
+    processNextStep();
+  };
 
-      return () => clearTimeout(timer);
-    }
-  }, [currentIndex]);
-
-  const activeEvent = events[events.length - 1];
+  const activeEvent = events.length > 0 ? events[events.length - 1] : null;
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-[#0a0f1c] to-black text-white p-4 md:p-8 font-sans selection:bg-purple-500/30">
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-[#0a0f1c] to-black text-white p-4 md:p-8 font-sans selection:bg-purple-500/30 flex flex-col">
       
       {/* Header */}
-      <header className="mb-10 flex flex-col md:flex-row justify-between items-center gap-4 border-b border-white/10 pb-6">
+      <header className="mb-6 flex flex-col md:flex-row justify-between items-center gap-4 border-b border-white/10 pb-6 shrink-0">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-[0_0_20px_rgba(59,130,246,0.5)]">
             <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
           </div>
           <div>
             <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400 tracking-tight">themap-co</h1>
-            <p className="text-slate-400 text-sm font-medium uppercase tracking-widest mt-1">Band Agentic Mesh Dashboard</p>
+            <p className="text-slate-400 text-sm font-medium uppercase tracking-widest mt-1">Band Agentic Mesh</p>
           </div>
         </div>
         <div className="flex items-center gap-3 bg-white/5 px-4 py-2 rounded-full border border-white/10 backdrop-blur-sm">
@@ -136,14 +150,14 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <main className="max-w-[1600px] mx-auto w-full flex-1 grid grid-cols-1 lg:grid-cols-4 gap-6 min-h-0">
         
         {/* Left Column: Roster & State */}
         <div className="lg:col-span-1 flex flex-col gap-6">
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 relative overflow-hidden">
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 relative overflow-hidden shrink-0">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
             <h2 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-4">Currently Active</h2>
-            {activeEvent ? (
+            {activeEvent && isProcessing ? (
               <div className="flex flex-col items-center text-center mt-4">
                 <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold border-2 mb-4 relative ${AGENT_COLORS[activeEvent.agent]} shadow-2xl transition-all`}>
                   {activeEvent.status === 'thinking' && <div className="absolute -inset-2 border-2 border-current rounded-3xl animate-ping opacity-20"></div>}
@@ -159,15 +173,15 @@ export default function Home() {
                 </p>
               </div>
             ) : (
-              <div className="text-slate-500 text-sm text-center py-8">Awaiting Workflow...</div>
+              <div className="text-slate-500 text-sm text-center py-8 font-medium">System Idle. Waiting for human input.</div>
             )}
           </div>
 
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 flex-1">
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 flex-1 overflow-y-auto min-h-0">
             <h2 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-4">Agent Mesh Roster</h2>
             <ul className="space-y-2">
               {Object.keys(AGENT_COLORS).map(agent => {
-                const isActive = activeEvent?.agent === agent;
+                const isActive = activeEvent?.agent === agent && isProcessing;
                 return (
                   <li key={agent} className={`flex items-center justify-between p-2 rounded-lg transition-all duration-300 ${isActive ? 'bg-white/10 scale-105 shadow-md' : 'hover:bg-white/5'}`}>
                     <div className="flex items-center gap-3">
@@ -184,14 +198,24 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Middle Column: Live Feed */}
-        <div className="lg:col-span-2 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 relative flex flex-col h-[750px]">
-          <h2 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-6 flex items-center gap-2">
-            <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
-            Live Collaboration Feed
-          </h2>
-          <div className="flex-1 overflow-y-auto space-y-4 pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-            {events.map((ev, idx) => (
+        {/* Middle Column: Chat / Feed */}
+        <div className="lg:col-span-2 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl flex flex-col h-full min-h-0">
+          <div className="p-6 border-b border-white/10 shrink-0">
+            <h2 className="text-slate-400 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+              <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+              Live Collaboration Feed
+            </h2>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+            {events.length === 0 && (
+              <div className="h-full flex flex-col items-center justify-center text-slate-500 opacity-50">
+                <svg className="w-16 h-16 mb-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                <p>Type a task below to trigger the multi-agent mesh.</p>
+              </div>
+            )}
+            
+            {events.map((ev) => (
               <div key={ev.id} className="flex gap-3 items-start animate-in slide-in-from-bottom-4 fade-in duration-500">
                 <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold border ${AGENT_COLORS[ev.agent]} shadow-lg mt-1`}>
                   {ev.agent.substring(0, 1)}
@@ -206,13 +230,14 @@ export default function Home() {
                     {ev.status === 'thinking' && <span className="text-blue-400 text-[10px] font-bold uppercase animate-pulse">Deliberating...</span>}
                     {ev.status === 'error' && <span className="text-red-400 text-[10px] font-bold uppercase">Alert</span>}
                   </div>
-                  <div className="text-slate-300 text-xs">
-                    <span className="font-mono bg-white/10 px-1 py-0.5 rounded mr-2">{ev.action}</span>
+                  <div className="text-slate-300 text-xs leading-relaxed">
+                    <span className="font-mono bg-white/10 px-1 py-0.5 rounded mr-2 font-bold">{ev.action}</span>
                     <span className={ev.status === 'thinking' ? 'text-slate-400 italic' : 'text-white'}>{ev.detail}</span>
                   </div>
                 </div>
               </div>
             ))}
+            
             {activeEvent?.status === 'thinking' && (
               <div className="flex gap-1 ml-12 mt-2 opacity-50">
                 <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '0ms' }}></div>
@@ -220,77 +245,141 @@ export default function Home() {
                 <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '300ms' }}></div>
               </div>
             )}
+            <div ref={feedEndRef} />
+          </div>
+
+          {/* User Input Area */}
+          <div className="p-4 border-t border-white/10 bg-black/40 shrink-0">
+            <form onSubmit={handleSubmit} className="relative">
+              <input 
+                type="text" 
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder="Enter a task for the agents (e.g. Update Gaborone CBD Roads)"
+                className="w-full bg-white/5 border border-white/20 rounded-xl py-4 pl-4 pr-16 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                disabled={isProcessing}
+              />
+              <button 
+                type="submit"
+                disabled={isProcessing || !inputValue.trim()}
+                className="absolute right-2 top-2 bottom-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-lg px-4 font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
+              >
+                SEND
+              </button>
+            </form>
           </div>
         </div>
 
-        {/* Right Column: Output Artifacts */}
-        <div className="lg:col-span-1 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl flex flex-col h-[750px] overflow-hidden relative shadow-2xl">
+        {/* Right Column: Visual Output Artifacts */}
+        <div className="lg:col-span-1 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl flex flex-col h-full min-h-[500px] overflow-hidden relative shadow-2xl">
           <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-3xl rounded-full pointer-events-none"></div>
-          <div className="p-6 border-b border-white/10 bg-white/5">
+          <div className="p-6 border-b border-white/10 bg-white/5 shrink-0">
             <h2 className="text-slate-400 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-              <svg className="w-4 h-4 text-emerald-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
-              Output Artifact Viewer
+              <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+              Visual Outputs
             </h2>
           </div>
-          <div className="flex-1 flex flex-col relative p-4">
+          <div className="flex-1 flex flex-col relative p-4 bg-black/20">
             <h3 className="text-white text-sm font-bold mb-3 tracking-wide">{currentArtifact.title}</h3>
             
-            <div className={`flex-1 rounded-xl border border-white/10 overflow-hidden flex flex-col p-4 shadow-inner relative ${
-              currentArtifact.type === 'map' ? 'bg-slate-900' : 
-              currentArtifact.type === 'code' ? 'bg-[#1e1e1e]' : 
-              currentArtifact.type === 'empty' ? 'bg-transparent border-dashed items-center justify-center' :
-              'bg-slate-950'
-            }`}>
+            <div className="flex-1 rounded-xl overflow-hidden flex flex-col relative">
               
               {currentArtifact.type === 'empty' && (
-                <span className="text-slate-500 text-sm font-medium">Waiting for agents...</span>
+                <div className="flex-1 border-2 border-dashed border-white/10 rounded-xl flex items-center justify-center p-6 text-center">
+                  <span className="text-slate-500 text-sm font-medium">Task output will render visually here...</span>
+                </div>
               )}
 
+              {/* MAP COMPONENT */}
               {currentArtifact.type === 'map' && (
-                <div className="w-full h-full relative">
+                <div className="w-full h-full relative bg-slate-900 rounded-xl border border-white/10 shadow-inner">
                   {/* Grid Background */}
                   <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'linear-gradient(#334155 1px, transparent 1px), linear-gradient(90deg, #334155 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
                   
-                  {/* Scanning Animation for "processing" maps */}
-                  {currentArtifact.content === 'scanning' && (
+                  {/* Scanning Animation */}
+                  {currentArtifact.state === 'scanning' && (
                     <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-10 pointer-events-none">
                       <div className="w-full h-1 bg-emerald-500 shadow-[0_0_15px_#10b981] animate-bounce opacity-70"></div>
                     </div>
                   )}
 
-                  {/* Nodes and Paths (SVG) */}
+                  {/* SVG Nodes */}
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                    <path d="M20,80 L40,40 L70,50 L90,20" fill="none" stroke="#3b82f6" strokeWidth="1" strokeDasharray="2,2" className={currentArtifact.content === 'scanning' ? 'animate-pulse' : ''} />
-                    {(currentArtifact.content === 'extracted' || currentArtifact.content === 'validated' || currentArtifact.content === 'production') && (
-                      <path d="M10,90 L30,60 L60,70 L85,30" fill="none" stroke={currentArtifact.content === 'production' ? '#3b82f6' : '#10b981'} strokeWidth="1.5" />
+                    <path d="M20,80 L40,40 L70,50 L90,20" fill="none" stroke="#3b82f6" strokeWidth="1" strokeDasharray="2,2" className={currentArtifact.state === 'scanning' ? 'animate-pulse' : ''} />
+                    {(currentArtifact.state === 'extracted' || currentArtifact.state === 'validated' || currentArtifact.state === 'production') && (
+                      <path d="M10,90 L30,60 L60,70 L85,30" fill="none" stroke={currentArtifact.state === 'production' ? '#3b82f6' : '#10b981'} strokeWidth="1.5" className="animate-in fade-in duration-700" />
                     )}
                     
                     <circle cx="30" cy="60" r="2" fill="#10b981" className="animate-pulse" />
                     <circle cx="30" cy="60" r="1.5" fill="#fff" />
-                    
                     <circle cx="60" cy="70" r="2" fill="#10b981" />
                     <circle cx="60" cy="70" r="1.5" fill="#fff" />
-                    
                     <circle cx="85" cy="30" r="2" fill="#ef4444" className="animate-bounce" />
                     <circle cx="85" cy="30" r="1" fill="#fff" />
                   </svg>
 
-                  {/* HUD Elements */}
-                  <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm p-2 rounded text-[9px] text-emerald-400 font-mono border border-emerald-500/20">
-                    <div>LAT: -24.653</div>
-                    <div>LNG: 25.918</div>
-                    <div className="mt-1 font-bold text-blue-400">STATUS: {currentArtifact.content.toUpperCase()}</div>
+                  {/* HUD */}
+                  <div className="absolute bottom-2 left-2 right-2 bg-black/80 backdrop-blur-md p-3 rounded-lg text-xs text-emerald-400 font-mono border border-emerald-500/30">
+                    <div className="flex justify-between"><span>LAT:</span> <span className="text-white">-24.653</span></div>
+                    <div className="flex justify-between"><span>LNG:</span> <span className="text-white">25.918</span></div>
+                    <div className="mt-2 pt-2 border-t border-emerald-500/30 font-bold text-center">
+                      {currentArtifact.state === 'scanning' && <span className="text-blue-400">SCANNING...</span>}
+                      {currentArtifact.state === 'extracted' && <span className="text-yellow-400">UNVALIDATED VECTORS</span>}
+                      {currentArtifact.state === 'validated' && <span className="text-emerald-400">VECTORS VALIDATED</span>}
+                      {currentArtifact.state === 'production' && <span className="text-purple-400">PRODUCTION DEPLOYED</span>}
+                    </div>
                   </div>
                 </div>
               )}
 
-              {(currentArtifact.type === 'json' || currentArtifact.type === 'code') && (
-                <div className="w-full h-full overflow-hidden relative group">
-                  <pre className="w-full h-full overflow-auto text-xs text-green-400 font-mono text-left leading-relaxed pb-4 scrollbar-thin scrollbar-thumb-white/10">
-                    <code>{currentArtifact.content}</code>
-                  </pre>
-                  {/* Fade out bottom to look sleek */}
-                  <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-slate-950 to-transparent pointer-events-none"></div>
+              {/* RISK / VALIDATION TABLE COMPONENT */}
+              {currentArtifact.type === 'risk_table' && currentArtifact.riskData && (
+                <div className="flex-1 bg-slate-900 border border-white/10 rounded-xl p-4 flex flex-col gap-3">
+                  {currentArtifact.riskData.map((item, i) => (
+                    <div key={i} className="bg-black/50 border border-white/5 rounded-lg p-3 flex justify-between items-center animate-in fade-in zoom-in-95 duration-300" style={{ animationDelay: \`\${i * 150}ms\` }}>
+                      <span className="text-slate-300 text-sm font-medium">{item.label}</span>
+                      <span className={\`px-2 py-1 rounded text-xs font-bold \${item.safe ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30 animate-pulse'}\`}>
+                        {item.value}
+                      </span>
+                    </div>
+                  ))}
+                  
+                  {!currentArtifact.riskData.every(d => d.safe) && (
+                    <div className="mt-auto bg-red-950/50 border border-red-500/50 p-3 rounded-lg flex items-center gap-2">
+                      <svg className="w-5 h-5 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                      <span className="text-red-400 text-xs font-bold">AUTOMATIC REJECTION</span>
+                    </div>
+                  )}
+                  {currentArtifact.riskData.every(d => d.safe) && (
+                    <div className="mt-auto bg-emerald-950/50 border border-emerald-500/50 p-3 rounded-lg flex items-center gap-2">
+                      <svg className="w-5 h-5 text-emerald-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                      <span className="text-emerald-400 text-xs font-bold">ALL CHECKS PASSED</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* CODE DIFF COMPONENT */}
+              {currentArtifact.type === 'code_diff' && currentArtifact.codeDiff && (
+                <div className="flex-1 bg-[#1e1e1e] border border-white/10 rounded-xl flex flex-col overflow-hidden">
+                  <div className="bg-[#2d2d2d] px-4 py-2 flex items-center gap-2 border-b border-black/50 shrink-0">
+                    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    <span className="text-slate-300 text-xs font-mono">{currentArtifact.codeDiff.file}</span>
+                  </div>
+                  <div className="p-4 font-mono text-xs leading-relaxed overflow-y-auto">
+                    {currentArtifact.codeDiff.deletions.map((line, i) => (
+                      <div key={'del'+i} className="text-red-400 bg-red-950/30 px-2 -mx-4 flex">
+                        <span className="w-6 text-red-500/50 select-none">-</span>
+                        <span>{line}</span>
+                      </div>
+                    ))}
+                    {currentArtifact.codeDiff.additions.map((line, i) => (
+                      <div key={'add'+i} className="text-emerald-400 bg-emerald-950/30 px-2 -mx-4 flex">
+                        <span className="w-6 text-emerald-500/50 select-none">+</span>
+                        <span>{line}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
