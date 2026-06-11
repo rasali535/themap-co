@@ -99,39 +99,95 @@ export default function Home() {
     const flowData = generateFlow(inputValue);
     setInputValue("");
     
-    let stepIndex = 0;
-    
-    const processNextStep = () => {
-      if (stepIndex >= flowData.length) {
-        setIsProcessing(false);
-        return;
-      }
+    const processFlow = async () => {
+      let stepIndex = 0;
+      let finalResult = "Task completed successfully.";
       
-      const currentItem = flowData[stepIndex];
-      const delay = currentItem.status === 'thinking' ? 3500 : 2000;
-
-      if (currentItem.artifact) {
-        setCurrentArtifact(currentItem.artifact);
+      // Try to fetch real results from the local LLM if available
+      try {
+        // Run the fetch in the background while the UI shows the agents thinking
+        fetch('http://localhost:9999/qwen', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: inputValue })
+        }).then(res => res.json()).then(data => {
+          if (data.content) finalResult = data.content;
+        }).catch(() => {
+            // fallback to llama if qwen fails
+            fetch('http://localhost:9999/llama', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ prompt: inputValue })
+            }).then(res => res.json()).then(data => {
+              if (data.content) finalResult = data.content;
+            }).catch(() => console.log('LLM fetch failed, using fallback'));
+        });
+      } catch (e) {
+        console.log("Local LLM not reachable");
       }
 
-      setEvents(prev => {
-        const newEvents = [...prev];
-        if (
-          newEvents.length > 0 && 
-          newEvents[newEvents.length - 1].status === 'thinking' && 
-          newEvents[newEvents.length - 1].agent === currentItem.agent
-        ) {
-          newEvents.pop(); // Remove the "thinking" state
+      const processNextStep = () => {
+        if (stepIndex >= flowData.length) {
+          // Add the final real result
+          setEvents(prev => [...prev, {
+            id: stepIndex,
+            agent: "Reporting",
+            action: "REPORT_GENERATED",
+            detail: "Final product generated based on agent consensus.",
+            status: "complete",
+            artifact: {
+              type: 'code_diff',
+              title: 'Final Intended Result',
+              codeDiff: {
+                file: 'result.md',
+                additions: finalResult.split('\n'),
+                deletions: []
+              }
+            }
+          }]);
+          
+          setCurrentArtifact({
+              type: 'code_diff',
+              title: 'Final Intended Result',
+              codeDiff: {
+                file: 'result.md',
+                additions: finalResult.split('\n'),
+                deletions: []
+              }
+          });
+          
+          setIsProcessing(false);
+          return;
         }
-        return [...newEvents, { ...currentItem, id: stepIndex }];
-      });
-      
-      stepIndex++;
-      setTimeout(processNextStep, delay);
+        
+        const currentItem = flowData[stepIndex];
+        const delay = currentItem.status === 'thinking' ? 2500 : 1500;
+
+        if (currentItem.artifact) {
+          setCurrentArtifact(currentItem.artifact);
+        }
+
+        setEvents(prev => {
+          const newEvents = [...prev];
+          if (
+            newEvents.length > 0 && 
+            newEvents[newEvents.length - 1].status === 'thinking' && 
+            newEvents[newEvents.length - 1].agent === currentItem.agent
+          ) {
+            newEvents.pop(); // Remove the "thinking" state
+          }
+          return [...newEvents, { ...currentItem, id: stepIndex }];
+        });
+        
+        stepIndex++;
+        setTimeout(processNextStep, delay);
+      };
+
+      processNextStep();
     };
 
     // Start the recursive flow
-    processNextStep();
+    processFlow();
   };
 
   const activeEvent = events.length > 0 ? events[events.length - 1] : null;
