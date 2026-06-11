@@ -11,15 +11,16 @@ export class OperationsAgent {
   }
 
   private monitor(event: any) {
-    // Monitor workflow health, timeout checks, escalations
-    if (!event.data) {
+    // Detect workflow bottlenecks
+    setTimeout(() => {
+      // If no updates in 10 minutes (simulated as 10s), escalate
       this.room.send({
-        type: EventType.WORKFLOW_ESCALATED,
+        type: EventType.OPERATIONS_ALERT,
         timestamp: new Date().toISOString(),
         sourceAgent: 'OperationsAgent',
         correlationId: event.correlationId,
-        data: { reason: 'Missing payload' }
+        data: { reason: 'Task stall detected', taskId: event.data.taskId }
       });
-    }
+    }, 10000);
   }
 }

@@ -11,14 +11,8 @@ export class ValidationAgent {
   }
 
   private validate(event: any) {
-    const isValid = true;
-    this.room.send({
-      type: EventType.GEO_FEATURE_VALIDATED,
-      timestamp: new Date().toISOString(),
-      sourceAgent: 'ValidationAgent',
-      correlationId: event.correlationId,
-      data: { taskId: event.data.taskId, isValid }
-    });
+    // Simulate complex validation logic that can sometimes fail
+    const isValid = Math.random() > 0.1; // 90% success rate
     
     this.room.send({
       type: EventType.QA_RESULT,

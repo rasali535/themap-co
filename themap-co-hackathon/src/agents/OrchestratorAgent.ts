@@ -1,6 +1,5 @@
 import { BandRoom } from '../band/client';
 import { EventType } from '../band/events';
-import { v4 as uuidv4 } from 'uuid';
 
 export class OrchestratorAgent {
   constructor(private room: BandRoom) {
@@ -10,22 +9,36 @@ export class OrchestratorAgent {
   private init() {
     this.room.on(EventType.TASK_CREATED, (e) => this.assignTask(e));
     this.room.on(EventType.QA_RESULT, (e) => this.processQA(e));
-    this.room.on(EventType.APPROVAL_GRANTED, (e) => this.finalizeUpdate(e));
+    this.room.on(EventType.RISK_ASSESSMENT, (e) => this.processRisk(e));
   }
 
   private assignTask(event: any) {
-    const taskId = event.data.taskId;
     this.room.send({
       type: EventType.TASK_ASSIGNED,
       timestamp: new Date().toISOString(),
       sourceAgent: 'OrchestratorAgent',
       correlationId: event.correlationId,
-      data: { taskId, agentId: 'GeoIntelligenceAgent' }
+      data: { taskId: event.data.taskId, agentId: 'GeoIntelligenceAgent' }
     });
   }
 
   private processQA(event: any) {
-    if (event.data.approved) {
+    if (!event.data.approved) {
+      // Recovery System: Escalation on QA Failure
+      this.room.send({
+        type: EventType.WORKFLOW_ESCALATED,
+        timestamp: new Date().toISOString(),
+        sourceAgent: 'OrchestratorAgent',
+        correlationId: event.correlationId,
+        data: { taskId: event.data.taskId, reason: 'QA Failed', action: 'Re-assigning' }
+      });
+      // Re-assign logic would go here
+    }
+  }
+
+  private processRisk(event: any) {
+    // Gate Map Updates behind Risk Checks
+    if (event.data.confidence >= 0.90) {
       this.room.send({
         type: EventType.APPROVAL_GRANTED,
         timestamp: new Date().toISOString(),
@@ -33,24 +46,22 @@ export class OrchestratorAgent {
         correlationId: event.correlationId,
         data: { taskId: event.data.taskId }
       });
+      
+      this.room.send({
+        type: EventType.MAP_UPDATE,
+        timestamp: new Date().toISOString(),
+        sourceAgent: 'OrchestratorAgent',
+        correlationId: event.correlationId,
+        data: { taskId: event.data.taskId, status: 'PUBLISHED' }
+      });
     } else {
       this.room.send({
         type: EventType.APPROVAL_REJECTED,
         timestamp: new Date().toISOString(),
         sourceAgent: 'OrchestratorAgent',
         correlationId: event.correlationId,
-        data: { taskId: event.data.taskId }
+        data: { taskId: event.data.taskId, reason: 'High Risk / Low Confidence' }
       });
     }
-  }
-
-  private finalizeUpdate(event: any) {
-    this.room.send({
-      type: EventType.MAP_UPDATE,
-      timestamp: new Date().toISOString(),
-      sourceAgent: 'OrchestratorAgent',
-      correlationId: event.correlationId,
-      data: { taskId: event.data.taskId, status: 'PUBLISHED' }
-    });
   }
 }
