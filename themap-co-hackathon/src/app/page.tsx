@@ -29,17 +29,6 @@ const AGENT_COLORS: Record<string, string> = {
   AuditCompliance: 'text-teal-400 bg-teal-400/10 border-teal-400/30',
 };
 
-const MOCK_MAP_SVG = `
-<svg viewBox="0 0 400 300" fill="none" stroke="currentColor" stroke-width="2" class="w-full h-full text-emerald-500 opacity-80">
-  <path d="M50 250 L100 150 L200 180 L350 50" stroke-dasharray="5,5" class="animate-pulse" />
-  <path d="M100 150 L150 100 L250 120 L350 50" stroke="#3b82f6" />
-  <circle cx="100" cy="150" r="5" fill="#10b981" />
-  <circle cx="200" cy="180" r="5" fill="#10b981" />
-  <circle cx="350" cy="50" r="5" fill="#ef4444" />
-  <rect x="140" y="90" width="20" height="20" fill="#3b82f6" opacity="0.5" />
-</svg>
-`;
-
 const CODE_PATCH = `
 // metadata-parser.js
 export function parseTopology(metadata) {
@@ -69,21 +58,21 @@ const mockFlowData: Omit<FlowEvent, 'id'>[] = [
   { agent: "Planner", action: "TASK_CREATED", detail: "Update Gaborone CBD Roads", status: "complete" },
   { agent: "AuditCompliance", action: "AUDIT_LOGGED", detail: "Task instantiation recorded", status: "complete" },
   { agent: "Orchestrator", action: "TASK_ASSIGNED", detail: "Routed to @GeoIntelligenceAgent", status: "complete" },
-  { agent: "GeoIntelligence", action: "DELIBERATING", detail: "Analyzing satellite imagery & extracting road vectors...", status: "thinking", artifact: { type: 'map', title: 'Satellite Processing', content: MOCK_MAP_SVG } },
-  { agent: "GeoIntelligence", action: "GEO_FEATURE_EXTRACTED", detail: "42 road vectors found", status: "complete", artifact: { type: 'map', title: 'Extracted Topology', content: MOCK_MAP_SVG } },
+  { agent: "GeoIntelligence", action: "DELIBERATING", detail: "Analyzing satellite imagery & extracting road vectors...", status: "thinking", artifact: { type: 'map', title: 'Satellite Processing', content: 'scanning' } },
+  { agent: "GeoIntelligence", action: "GEO_FEATURE_EXTRACTED", detail: "42 road vectors found", status: "complete", artifact: { type: 'map', title: 'Extracted Topology', content: 'extracted' } },
   { agent: "Validation", action: "DELIBERATING", detail: "Cross-referencing topology with baseline...", status: "thinking" },
   { agent: "Validation", action: "QA_RESULT", detail: "Failed: Missing critical metadata tags", status: "error", artifact: { type: 'json', title: 'Validation Error', content: '{ "error": "Missing CRS Mapping", "code": 501 }' } },
   { agent: "Orchestrator", action: "WORKFLOW_ESCALATED", detail: "Re-routing task to @DeveloperAgent", status: "error" },
   { agent: "Developer", action: "DELIBERATING", detail: "Debugging metadata parsing logic...", status: "thinking" },
   { agent: "Developer", action: "SYSTEM_NOTIFICATION", detail: "Patch deployed: metadata-parser.js", status: "complete", artifact: { type: 'code', title: 'metadata-parser.js (diff)', content: CODE_PATCH } },
   { agent: "GeoIntelligence", action: "DELIBERATING", detail: "Re-extracting with patched parser...", status: "thinking" },
-  { agent: "GeoIntelligence", action: "GEO_FEATURE_EXTRACTED", detail: "42 vectors (metadata fully attached)", status: "complete", artifact: { type: 'json', title: 'Validated Vectors', content: JSON_EXTRACT } },
+  { agent: "GeoIntelligence", action: "GEO_FEATURE_EXTRACTED", detail: "42 vectors (metadata fully attached)", status: "complete", artifact: { type: 'map', title: 'Validated Vectors', content: 'validated' } },
   { agent: "Validation", action: "DELIBERATING", detail: "Re-running topology validation...", status: "thinking" },
   { agent: "Validation", action: "QA_RESULT", detail: "Passed: 100% compliance", status: "complete" },
-  { agent: "Risk", action: "DELIBERATING", detail: "Reasoning over geospatial impact using Featherless AI...", status: "thinking" },
-  { agent: "Risk", action: "RISK_ASSESSMENT", detail: "Confidence 0.98. Safe for production.", status: "complete" },
+  { agent: "Risk", action: "DELIBERATING", detail: "Reasoning over geospatial impact using Featherless AI...", status: "thinking", artifact: { type: 'json', title: 'Risk Agent Reasoning', content: '{\n  "chain_of_thought": "Checking vector proximity to sensitive infrastructure...",\n  "flags": []\n}'} },
+  { agent: "Risk", action: "RISK_ASSESSMENT", detail: "Confidence 0.98. Safe for production.", status: "complete", artifact: { type: 'json', title: 'Risk Final Output', content: JSON_EXTRACT } },
   { agent: "Orchestrator", action: "APPROVAL_GRANTED", detail: "Map Update Approved", status: "complete" },
-  { agent: "Orchestrator", action: "MAP_UPDATE", detail: "PUBLISHED to Production", status: "complete", artifact: { type: 'map', title: 'Production Tile Update', content: MOCK_MAP_SVG } },
+  { agent: "Orchestrator", action: "MAP_UPDATE", detail: "PUBLISHED to Production", status: "complete", artifact: { type: 'map', title: 'Production Tile Update', content: 'production' } },
   { agent: "QaTest", action: "SYSTEM_NOTIFICATION", detail: "Regression checks passed", status: "complete" },
   { agent: "Reporting", action: "REPORT_GENERATED", detail: "Gaborone CBD mapping workflow finalized.", status: "complete", artifact: { type: 'json', title: 'Audit Manifest', content: '{ "status": "published", "hash": "8f3a1...9b2" }' } },
 ];
@@ -97,7 +86,7 @@ export default function Home() {
     if (currentIndex < mockFlowData.length) {
       const currentItem = mockFlowData[currentIndex];
       
-      const delay = currentItem.status === 'thinking' ? 3500 : 1800;
+      const delay = currentItem.status === 'thinking' ? 4000 : 2500;
 
       const timer = setTimeout(() => {
         if (currentItem.artifact) {
@@ -235,36 +224,74 @@ export default function Home() {
         </div>
 
         {/* Right Column: Output Artifacts */}
-        <div className="lg:col-span-1 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl flex flex-col h-[750px] overflow-hidden relative">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 blur-3xl rounded-full"></div>
+        <div className="lg:col-span-1 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl flex flex-col h-[750px] overflow-hidden relative shadow-2xl">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-3xl rounded-full pointer-events-none"></div>
           <div className="p-6 border-b border-white/10 bg-white/5">
             <h2 className="text-slate-400 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-              <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+              <svg className="w-4 h-4 text-emerald-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
               Output Artifact Viewer
             </h2>
           </div>
-          <div className="flex-1 p-6 flex flex-col relative">
-            <h3 className="text-white font-bold mb-4">{currentArtifact.title}</h3>
+          <div className="flex-1 flex flex-col relative p-4">
+            <h3 className="text-white text-sm font-bold mb-3 tracking-wide">{currentArtifact.title}</h3>
             
-            <div className={`flex-1 rounded-xl border border-white/10 overflow-hidden flex items-center justify-center p-4 shadow-inner ${
-              currentArtifact.type === 'map' ? 'bg-slate-900/50' : 
+            <div className={`flex-1 rounded-xl border border-white/10 overflow-hidden flex flex-col p-4 shadow-inner relative ${
+              currentArtifact.type === 'map' ? 'bg-slate-900' : 
               currentArtifact.type === 'code' ? 'bg-[#1e1e1e]' : 
-              currentArtifact.type === 'empty' ? 'bg-transparent border-dashed' :
+              currentArtifact.type === 'empty' ? 'bg-transparent border-dashed items-center justify-center' :
               'bg-slate-950'
             }`}>
               
               {currentArtifact.type === 'empty' && (
-                <span className="text-slate-500 text-sm font-medium">No artifact generated yet...</span>
+                <span className="text-slate-500 text-sm font-medium">Waiting for agents...</span>
               )}
 
               {currentArtifact.type === 'map' && (
-                <div dangerouslySetInnerHTML={{ __html: currentArtifact.content }} className="w-full h-full" />
+                <div className="w-full h-full relative">
+                  {/* Grid Background */}
+                  <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'linear-gradient(#334155 1px, transparent 1px), linear-gradient(90deg, #334155 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
+                  
+                  {/* Scanning Animation for "processing" maps */}
+                  {currentArtifact.content === 'scanning' && (
+                    <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-10 pointer-events-none">
+                      <div className="w-full h-1 bg-emerald-500 shadow-[0_0_15px_#10b981] animate-bounce opacity-70"></div>
+                    </div>
+                  )}
+
+                  {/* Nodes and Paths (SVG) */}
+                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <path d="M20,80 L40,40 L70,50 L90,20" fill="none" stroke="#3b82f6" strokeWidth="1" strokeDasharray="2,2" className={currentArtifact.content === 'scanning' ? 'animate-pulse' : ''} />
+                    {(currentArtifact.content === 'extracted' || currentArtifact.content === 'validated' || currentArtifact.content === 'production') && (
+                      <path d="M10,90 L30,60 L60,70 L85,30" fill="none" stroke={currentArtifact.content === 'production' ? '#3b82f6' : '#10b981'} strokeWidth="1.5" />
+                    )}
+                    
+                    <circle cx="30" cy="60" r="2" fill="#10b981" className="animate-pulse" />
+                    <circle cx="30" cy="60" r="1.5" fill="#fff" />
+                    
+                    <circle cx="60" cy="70" r="2" fill="#10b981" />
+                    <circle cx="60" cy="70" r="1.5" fill="#fff" />
+                    
+                    <circle cx="85" cy="30" r="2" fill="#ef4444" className="animate-bounce" />
+                    <circle cx="85" cy="30" r="1" fill="#fff" />
+                  </svg>
+
+                  {/* HUD Elements */}
+                  <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm p-2 rounded text-[9px] text-emerald-400 font-mono border border-emerald-500/20">
+                    <div>LAT: -24.653</div>
+                    <div>LNG: 25.918</div>
+                    <div className="mt-1 font-bold text-blue-400">STATUS: {currentArtifact.content.toUpperCase()}</div>
+                  </div>
+                </div>
               )}
 
               {(currentArtifact.type === 'json' || currentArtifact.type === 'code') && (
-                <pre className="w-full h-full overflow-auto text-xs text-green-400 font-mono text-left leading-relaxed">
-                  <code>{currentArtifact.content}</code>
-                </pre>
+                <div className="w-full h-full overflow-hidden relative group">
+                  <pre className="w-full h-full overflow-auto text-xs text-green-400 font-mono text-left leading-relaxed pb-4 scrollbar-thin scrollbar-thumb-white/10">
+                    <code>{currentArtifact.content}</code>
+                  </pre>
+                  {/* Fade out bottom to look sleek */}
+                  <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-slate-950 to-transparent pointer-events-none"></div>
+                </div>
               )}
 
             </div>
