@@ -42,12 +42,14 @@ export class BandRoom {
         
         if (event === "message_created" && payload?.content) {
             try {
-                // Route message_created to local Orchestrator listeners
-                const innerEvent: BandEventPayload = JSON.parse(payload.content);
+                // Strip out the Band @mention routing prefix before JSON parsing
+                const rawContent = payload.content.replace(/^@[a-zA-Z0-9_-]+\s+/, '');
+                const innerEvent: BandEventPayload = JSON.parse(rawContent);
+                
                 const eventListeners = this.listeners[innerEvent.type] || [];
                 eventListeners.forEach((cb) => cb(innerEvent));
             } catch (e) {
-                // Payload wasn't JSON
+                // Payload wasn't JSON or wasn't our system event
             }
         }
       } catch (e) {
@@ -68,7 +70,32 @@ export class BandRoom {
   }
 
   async send(event: BandEventPayload) {
-    console.log(`[Band Room ${this.name}] [${event.type}] from ${event.sourceAgent}`);
+    // Determine strict routing destination based on event type
+    let targetAgent = "";
+    switch(event.type) {
+      case EventType.TASK_CREATED:
+      case EventType.QA_RESULT:
+      case EventType.RISK_ASSESSMENT:
+        targetAgent = "OrchestratorAgent";
+        break;
+      case EventType.TASK_ASSIGNED:
+        targetAgent = event.data?.agentId || "GeoIntelligenceAgent";
+        break;
+      case EventType.WORKFLOW_ESCALATED:
+        targetAgent = "DeveloperAgent";
+        break;
+      case EventType.MAP_UPDATE:
+        targetAgent = "QaTestAgent";
+        break;
+    }
+
+    // Apply Band's strictly-required @mention routing pattern
+    let contentString = JSON.stringify(event);
+    if (targetAgent) {
+      contentString = `@${targetAgent} ${contentString}`;
+    }
+
+    console.log(`[Band Room ${this.name}] ${targetAgent ? `Routing to @${targetAgent}` : 'Broadcasting'}: [${event.type}] from ${event.sourceAgent}`);
     
     // Simulate real REST API call to Band Platform via POST /messages
     try {
@@ -79,12 +106,11 @@ export class BandRoom {
                 'X-API-Key': this.apiKey
             },
             body: JSON.stringify({
-                content: JSON.stringify(event)
+                content: contentString
             })
         });
 
-        // For the hackathon demo, if the network fails or key is a placeholder, we gracefully fallback
-        // to direct local routing so the demo flow never crashes on stage.
+        // For the hackathon demo, if the network fails or key is a placeholder, gracefully fallback
         if (!response.ok) {
             console.warn(`[Band REST] POST failed (using local fallback mode) - Status: ${response.status}`);
             const eventListeners = this.listeners[event.type] || [];
