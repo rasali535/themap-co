@@ -31,41 +31,50 @@ const AGENT_COLORS: Record<string, string> = {
   AuditCompliance: 'text-teal-400 bg-teal-400/10 border-teal-400/30',
 };
 
-// We will build the mock flow dynamically based on user input
-const generateFlow = (userInput: string): Omit<FlowEvent, 'id'>[] => [
-  { agent: "Planner", action: "TASK_CREATED", detail: userInput, status: "complete" },
-  { agent: "AuditCompliance", action: "AUDIT_LOGGED", detail: "Task instantiation recorded", status: "complete" },
-  { agent: "Orchestrator", action: "TASK_ASSIGNED", detail: "Routed to @GeoIntelligenceAgent", status: "complete" },
-  { agent: "GeoIntelligence", action: "DELIBERATING", detail: "Analyzing satellite imagery & extracting road vectors...", status: "thinking", artifact: { type: 'map', title: 'Satellite Processing', state: 'scanning' } },
-  { agent: "GeoIntelligence", action: "GEO_FEATURE_EXTRACTED", detail: "42 road vectors found", status: "complete", artifact: { type: 'map', title: 'Extracted Topology', state: 'extracted' } },
-  { agent: "Validation", action: "DELIBERATING", detail: "Cross-referencing topology with baseline...", status: "thinking" },
-  { agent: "Validation", action: "QA_RESULT", detail: "Failed: Missing critical metadata tags", status: "error", artifact: { type: 'risk_table', title: 'Validation Audit Report', riskData: [
-    { label: 'Topology Check', value: 'Passed', safe: true },
-    { label: 'CRS Mapping', value: 'Missing Data', safe: false },
-    { label: 'Vector Count', value: '42 Features', safe: true }
-  ]} },
-  { agent: "Orchestrator", action: "WORKFLOW_ESCALATED", detail: "Re-routing task to @DeveloperAgent", status: "error" },
-  { agent: "Developer", action: "DELIBERATING", detail: "Debugging metadata parsing logic...", status: "thinking" },
-  { agent: "Developer", action: "SYSTEM_NOTIFICATION", detail: "Patch deployed: metadata-parser.js", status: "complete", artifact: { type: 'code_diff', title: 'Developer Code Patch', codeDiff: {
-    file: 'metadata-parser.js',
-    deletions: ['  return alignVectors(metadata);'],
-    additions: ['  if (!metadata || !metadata.crs) throw new Error("Missing CRS mapping");', '  return alignVectors(metadata);']
-  } } },
-  { agent: "GeoIntelligence", action: "DELIBERATING", detail: "Re-extracting with patched parser...", status: "thinking" },
-  { agent: "GeoIntelligence", action: "GEO_FEATURE_EXTRACTED", detail: "42 vectors (metadata fully attached)", status: "complete", artifact: { type: 'map', title: 'Validated Vectors', state: 'validated' } },
-  { agent: "Validation", action: "DELIBERATING", detail: "Re-running topology validation...", status: "thinking" },
-  { agent: "Validation", action: "QA_RESULT", detail: "Passed: 100% compliance", status: "complete" },
-  { agent: "Risk", action: "DELIBERATING", detail: "Reasoning over geospatial impact using Featherless AI...", status: "thinking" },
-  { agent: "Risk", action: "RISK_ASSESSMENT", detail: "Confidence 0.98. Safe for production.", status: "complete", artifact: { type: 'risk_table', title: 'Final Risk Assessment', riskData: [
-    { label: 'Security Impact', value: 'Low', safe: true },
-    { label: 'Regulatory Risk', value: 'Negligible', safe: true },
-    { label: 'Confidence Score', value: '98%', safe: true }
-  ]} },
-  { agent: "Orchestrator", action: "APPROVAL_GRANTED", detail: "Map Update Approved", status: "complete" },
-  { agent: "Orchestrator", action: "MAP_UPDATE", detail: "PUBLISHED to Production", status: "complete", artifact: { type: 'map', title: 'Production Tile Update', state: 'production' } },
-  { agent: "QaTest", action: "SYSTEM_NOTIFICATION", detail: "Regression checks passed", status: "complete" },
-  { agent: "Reporting", action: "REPORT_GENERATED", detail: "Mapping workflow finalized successfully.", status: "complete" },
-];
+// We will build the mock flow dynamically based on user input to look realistic
+const generateFlow = (userInput: string): Omit<FlowEvent, 'id'>[] => {
+  // Simple NLP extraction for hackathon demo realism
+  const locationMatch = userInput.match(/in\s+([A-Z][a-zA-Z\s]+)/i) || userInput.match(/for\s+([A-Z][a-zA-Z\s]+)/i);
+  const location = locationMatch ? locationMatch[1].trim() : "the target region";
+  
+  const featureMatch = userInput.match(/(?:update|analyze|extract|find|map)\s+(.*?)(?:\s+in|\s+for|$)/i);
+  const feature = featureMatch ? featureMatch[1].trim() : "geospatial features";
+
+  return [
+    { agent: "Planner", action: "TASK_CREATED", detail: userInput, status: "complete" },
+    { agent: "AuditCompliance", action: "AUDIT_LOGGED", detail: `Task instantiation recorded for ${location}`, status: "complete" },
+    { agent: "Orchestrator", action: "TASK_ASSIGNED", detail: "Routed to @GeoIntelligenceAgent", status: "complete" },
+    { agent: "GeoIntelligence", action: "DELIBERATING", detail: `Analyzing satellite imagery & extracting ${feature}...`, status: "thinking", artifact: { type: 'map', title: 'Satellite Processing', state: 'scanning' } },
+    { agent: "GeoIntelligence", action: "GEO_FEATURE_EXTRACTED", detail: `42 ${feature} found in ${location}`, status: "complete", artifact: { type: 'map', title: 'Extracted Topology', state: 'extracted' } },
+    { agent: "Validation", action: "DELIBERATING", detail: "Cross-referencing topology with baseline...", status: "thinking" },
+    { agent: "Validation", action: "QA_RESULT", detail: "Failed: Missing critical metadata tags", status: "error", artifact: { type: 'risk_table', title: 'Validation Audit Report', riskData: [
+      { label: 'Topology Check', value: 'Passed', safe: true },
+      { label: 'CRS Mapping', value: 'Missing Data', safe: false },
+      { label: 'Vector Count', value: '42 Features', safe: true }
+    ]} },
+    { agent: "Orchestrator", action: "WORKFLOW_ESCALATED", detail: "Re-routing task to @DeveloperAgent", status: "error" },
+    { agent: "Developer", action: "DELIBERATING", detail: "Debugging metadata parsing logic...", status: "thinking" },
+    { agent: "Developer", action: "SYSTEM_NOTIFICATION", detail: "Patch deployed: metadata-parser.js", status: "complete", artifact: { type: 'code_diff', title: 'Developer Code Patch', codeDiff: {
+      file: 'metadata-parser.js',
+      deletions: ['  return alignVectors(metadata);'],
+      additions: ['  if (!metadata || !metadata.crs) throw new Error("Missing CRS mapping");', '  return alignVectors(metadata);']
+    } } },
+    { agent: "GeoIntelligence", action: "DELIBERATING", detail: "Re-extracting with patched parser...", status: "thinking" },
+    { agent: "GeoIntelligence", action: "GEO_FEATURE_EXTRACTED", detail: `42 ${feature} (metadata fully attached)`, status: "complete", artifact: { type: 'map', title: 'Validated Vectors', state: 'validated' } },
+    { agent: "Validation", action: "DELIBERATING", detail: "Re-running topology validation...", status: "thinking" },
+    { agent: "Validation", action: "QA_RESULT", detail: "Passed: 100% compliance", status: "complete" },
+    { agent: "Risk", action: "DELIBERATING", detail: "Reasoning over geospatial impact using Featherless AI...", status: "thinking" },
+    { agent: "Risk", action: "RISK_ASSESSMENT", detail: "Confidence 0.98. Safe for production.", status: "complete", artifact: { type: 'risk_table', title: 'Final Risk Assessment', riskData: [
+      { label: 'Security Impact', value: 'Low', safe: true },
+      { label: 'Regulatory Risk', value: 'Negligible', safe: true },
+      { label: 'Confidence Score', value: '98%', safe: true }
+    ]} },
+    { agent: "Orchestrator", action: "APPROVAL_GRANTED", detail: "Map Update Approved", status: "complete" },
+    { agent: "Orchestrator", action: "MAP_UPDATE", detail: `PUBLISHED ${location} to Production`, status: "complete", artifact: { type: 'map', title: 'Production Tile Update', state: 'production' } },
+    { agent: "QaTest", action: "SYSTEM_NOTIFICATION", detail: "Regression checks passed", status: "complete" },
+    { agent: "Reporting", action: "REPORT_GENERATED", detail: `Mapping workflow for ${location} finalized successfully.`, status: "complete" },
+  ];
+};
 
 export default function Home() {
   const [events, setEvents] = useState<FlowEvent[]>([]);
