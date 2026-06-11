@@ -1,0 +1,80 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Agent {
+  id          String   @id @default(uuid())
+  name        String
+  role        String
+  status      String
+  lastActive  DateTime @default(now())
+}
+
+model Workflow {
+  id          String   @id @default(uuid())
+  title       String
+  status      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tasks       Task[]
+}
+
+model Task {
+  id          String   @id @default(uuid())
+  workflowId  String
+  agentId     String?
+  status      String
+  payload     Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  workflow    Workflow @relation(fields: [workflowId], references: [id])
+}
+
+model Event {
+  id          String   @id @default(uuid())
+  type        String
+  payload     Json
+  timestamp   DateTime @default(now())
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  action      String
+  agentId     String
+  details     Json
+  timestamp   DateTime @default(now())
+}
+
+model RiskAssessment {
+  id          String   @id @default(uuid())
+  taskId      String
+  score       Float
+  confidence  Float
+  details     Json
+  createdAt   DateTime @default(now())
+}
+
+model Report {
+  id          String   @id @default(uuid())
+  workflowId  String
+  summary     String
+  metrics     Json
+  createdAt   DateTime @default(now())
+}
+
+model MapFeature {
+  id          String   @id @default(uuid())
+  taskId      String
+  coordinates Json
+  properties  Json
+  status      String
+  createdAt   DateTime @default(now())
+}
